@@ -44,9 +44,10 @@ function parametric(fn: (t: number) => DrawPoint, closed = true): OutlinePath {
 function outline(id: string, name: string, paths: OutlinePath[]): Outline { return {id, name, paths, length:paths.reduce((sum, path) => sum + path.length, 0)}; }
 const cursorCorners: DrawStroke = [[-1.85,2.02],[2.02,.82],[.43,-.28],[-.28,-2.02]];
 export const cursorOutline = outline('cursor', 'Cursor', [makePath(rounded(cursorCorners, [.19,.19,.14,.19]))]);
+export const circleOutline = outline('circle', 'Circle', [parametric(t => [1.8 * Math.cos(t), 1.8 * Math.sin(t)])]);
 export const PRESET_OUTLINES: Outline[] = [
   cursorOutline,
-  outline('circle', 'Circle', [parametric(t => [1.8 * Math.cos(t), 1.8 * Math.sin(t)])]),
+  circleOutline,
   outline('heart', 'Heart', [parametric(t => [Math.pow(Math.sin(t), 3) * 1.9, (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * .12 + .25])]),
   outline('star', 'Star', [makePath(rounded(Array.from({length:10}, (_,i) => { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? .83 : 1.95; return [Math.cos(a)*r, Math.sin(a)*r] as DrawPoint; }), Array(10).fill(.09)))]),
   outline('infinity', 'Infinity', [parametric(t => [2 * Math.cos(t), 1.3 * Math.sin(t) * Math.cos(t)])]),

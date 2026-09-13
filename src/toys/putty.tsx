@@ -15,8 +15,13 @@ export const putty:ToyDefinition={
   theme:{background:'#f2e8df',foreground:'#614638',accent:'#a16a4f',muted:'#947a6b',surface:'#fff9f3',border:'#dec8b8'},
   copy:{
     loading:'Loading putty',instructions:['Hold to knead','Pull a fold'],
-    touchInstructions:['Hold to knead','Pinch & pull'],
+    touchInstructions:['Hold to knead','Drag to shape'],
     ...softBodyControls,
+    touchGuide:[
+      {gesture:'Hold to knead',description:'Rest a finger on the putty. Longer holds leave a dent that stays.'},
+      {gesture:'Pull a fold',description:'Drag from the putty to stretch it. Use two fingers to pinch or pull it apart.'},
+      {gesture:'Turn it around',description:'Drag on the empty space beside the putty to knead another side.'},
+    ],
   },
   load:()=>import('../putty/entry'),
 };

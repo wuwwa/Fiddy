@@ -12,6 +12,10 @@ export const liquidLight: ToyDefinition = {
   copy: {
     loading: 'Warming the light',
     instructions: ['Drag to paint', 'Tap to bloom'],
+    touchGuide: [
+      {gesture:'Paint with a finger',description:'Drag anywhere to leave a ribbon of light. Move in curves to mix the colors.'},
+      {gesture:'Tap or hold',description:'Tap for a small bloom, or hold in one place to add more color.'},
+    ],
     keyboardHint: <>Arrows to move <span>·</span> hold <kbd>space</kbd> to paint</>,
   },
   load: () => import('../liquid-light/entry'),

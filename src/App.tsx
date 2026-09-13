@@ -1,12 +1,15 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Collection } from './player/Collection';
 import { ToyPlayer } from './player/ToyPlayer';
+import { PlayGuide } from './player/PlayGuide';
+import { HelpIcon } from './player/Icons';
 import { resolveToyRoute, toyLocationHref } from './player/navigation';
 import type { ToyDefinition } from './toys/types';
 
 export function App() {
   const [toy, setToy] = useState(() => resolveToyRoute(location).toy);
   const [collectionOpen, setCollectionOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [sound, setSound] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [hidden, setHidden] = useState(document.hidden);
@@ -18,6 +21,7 @@ export function App() {
       if (route.replacement) history.replaceState(history.state, '', route.replacement);
       setToy(route.toy);
       setCollectionOpen(false);
+      setGuideOpen(false);
     };
     onPopState();
     const onVisibility = () => setHidden(document.hidden);
@@ -45,14 +49,17 @@ export function App() {
       setToy(next);
     }
     setCollectionOpen(false);
+    setGuideOpen(false);
   };
   const theme = Object.fromEntries(Object.entries(toy.theme).map(([key, value]) => [`--toy-${key}`, value])) as CSSProperties;
 
   return <main className="toy" style={theme}>
     <header className="masthead">
       <button className="wordmark" onClick={() => setCollectionOpen(true)} aria-label="Open toy collection" aria-haspopup="dialog"><Icon /><span>{toy.name.toLowerCase()}<span className="wordmark-dot">.</span></span></button>
+      <button className="guide-trigger floating-surface" onClick={() => setGuideOpen(true)} aria-label={`How to play ${toy.name}`} aria-haspopup="dialog" aria-expanded={guideOpen}><HelpIcon /><span>How to play</span></button>
     </header>
-    <ToyPlayer key={toy.id} toy={toy} paused={collectionOpen || hidden} reducedMotion={reducedMotion} sound={sound} onSoundChange={setSound} collectionOpen={collectionOpen} onOpenCollection={() => setCollectionOpen(true)} />
+    <ToyPlayer key={toy.id} toy={toy} paused={collectionOpen || guideOpen || hidden} reducedMotion={reducedMotion} sound={sound} onSoundChange={setSound} collectionOpen={collectionOpen} onOpenCollection={() => setCollectionOpen(true)} />
     <Collection open={collectionOpen} selected={toy} onClose={() => setCollectionOpen(false)} onSelect={selectToy} />
+    <PlayGuide open={guideOpen} toy={toy} onClose={() => setGuideOpen(false)} />
   </main>;
 }

@@ -8,6 +8,11 @@ export const silk: ToyDefinition = {
   theme: { background: '#191a18', foreground: '#eae4da', accent: '#d4c4ad', muted: '#aca699', surface: '#2b2d28', border: '#48483f' },
   copy: {
     loading: 'Unfolding the silk', instructions: ['Brush to ripple', 'Hold and drag to lift'], touchInstructions: ['Drag to lift', 'Release to ripple'],
+    touchGuide: [
+      {gesture:'Catch a fold',description:'Touch the fabric and drag slowly to lift and gather it.'},
+      {gesture:'Let it settle',description:'Lift your finger and watch the ripples travel through the fabric.'},
+      {gesture:'Try another color',description:'Tap a fabric color above the silk.'},
+    ],
     keyboardHint: <>Arrows to explore <span>·</span> hold <kbd>space</kbd> to lift</>,
   },
   load: () => import('../silk/entry'),

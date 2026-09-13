@@ -19,7 +19,7 @@ export const dumpling: ToyDefinition = {
   copy: {
     loading: 'Loading dumpling',
     instructions: ['Hold to sink in', 'Drag to stretch & twist'],
-    touchInstructions: ['Hold to sink in', 'Two fingers to pinch & stretch'],
+    touchInstructions: ['Hold to sink in', 'Drag to stretch'],
     ...softBodyControls,
   },
   load: () => import('../dumpling/entry'),

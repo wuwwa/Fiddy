@@ -16,7 +16,7 @@ export class GelInclusions {
   constructor(private gel: BatchedGel, mint: boolean) {
     let seed = 22117;
     const random = () => { seed = Math.imul(seed, 1664525) + 1013904223 | 0; return (seed >>> 0) / 4294967296; };
-    for (let i = 0; i < COUNT; i++) this.points.push({ x: (random() - .5) * 2.4, z: (random() - .5) * 2.1, y: .12 + random() * (gel.height - .25), radius: .011 + random() ** 2 * .028, part: -1 });
+    for (let i = 0; i < (mint ? 28 : COUNT); i++) this.points.push({ x: (random() - .5) * 2.4, z: (random() - .5) * 2.1, y: .12 + random() * (gel.height - .25), radius: (mint ? .008 : .011) + random() ** 2 * (mint ? .022 : .028), part: -1 });
     const material = new THREE.ShaderMaterial({
       uniforms: { tint: { value: new THREE.Color(mint ? '#83b8a8' : '#d798ae') } },
       vertexShader: 'varying vec2 disk; void main(){disk=uv*2.-1.;vec4 p=modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.);p.xy+=position.xy*length(instanceMatrix[0].xyz);gl_Position=projectionMatrix*p;}',
@@ -40,7 +40,8 @@ export class GelInclusions {
     for (const p of this.points) {
       if (p.part < 0) continue;
       const pose = this.gel.poses[p.part], origin = this.gel.origins[p.part], knife = this.gel.knife;
-      const x = (p.x - origin.x) * (1 + pose.w * .35) + pose.x, z = (p.z - origin.z) * (1 + pose.w * .35) + pose.y;
+      const u = Math.max(0, Math.min(1, (p.y - .015) / this.gel.height)), sway = pose.z * u * u;
+      const x = (p.x - origin.x) * (1 + pose.w * .35) + pose.x + .8 * sway, z = (p.z - origin.z) * (1 + pose.w * .35) + pose.y + .6 * sway;
       const d = x * knife.x + z * knife.y - knife.z, indent = Math.exp(-d * d * 30) * knife.w;
       this.matrix.position.set(x, p.y * (1 - pose.w * .7) - indent * (p.y / this.gel.height) ** 3, z);
       this.matrix.scale.setScalar(p.radius); this.matrix.updateMatrix(); this.mesh.setMatrixAt(count++, this.matrix.matrix);

@@ -47,6 +47,7 @@ export interface ToyDefinition {
     loading: string;
     instructions: readonly string[];
     touchInstructions?: readonly string[];
+    touchGuide?: readonly { gesture: string; description: string }[];
     desktopInstructionsOnly?: boolean;
     rotationHint?: string;
     keyboardHint: ReactNode;

@@ -21,7 +21,7 @@ export const jelly: ToyDefinition = {
     loading: 'Loading jelly',
     desktopInstructionsOnly: true,
     instructions: ['Hold to press in', 'Drag to stretch & twist'],
-    touchInstructions: ['Press & hold', 'Pinch & stretch'],
+    touchInstructions: ['Press & hold', 'Drag to stretch'],
     ...softBodyControls,
   },
   load: () => import('../jelly/entry'),

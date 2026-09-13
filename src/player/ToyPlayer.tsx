@@ -66,7 +66,7 @@ export function ToyPlayer({ toy, paused, reducedMotion, sound, onSoundChange, co
           {supportsSound && <><button className="sound-toggle" onClick={toggleSound} disabled={status !== 'ready' || audioBusy} aria-pressed={sound} aria-label={sound ? `Mute ${toy.name.toLowerCase()} sounds` : `Enable ${toy.name.toLowerCase()} sounds`}><SoundIcon enabled={sound} /></button><span className="control-divider" /></>}
           <button onClick={reset} disabled={status === 'loading'} aria-label={`Reset ${toy.name.toLowerCase()}`}><ResetIcon /><span>Reset</span></button>
         </div>
-        <button className="collection-trigger floating-surface" onClick={onOpenCollection} aria-label="Open collection" aria-haspopup="dialog" aria-expanded={collectionOpen}><CollectionIcon /><span>Collection</span></button>
+        <button className="collection-trigger floating-surface" onClick={onOpenCollection} aria-label="Open collection of toys" aria-haspopup="dialog" aria-expanded={collectionOpen}><CollectionIcon /><span className="collection-label-full">Collection</span><span className="collection-label-short" aria-hidden="true">Toys</span></button>
       </div>
       <p className="keyboard-hint" id="keyboard-instructions">{toy.copy.keyboardHint}</p>
       <span className="sr-only" role="status">{audioError}</span>

@@ -9,6 +9,11 @@ export const magneticDust: ToyDefinition = {
   copy: {
     loading: 'Scattering the filings', instructions: ['Press and hold', 'Move slowly'],
     touchInstructions: ['Hold and drag to shape', 'Release to relax'],
+    touchGuide: [
+      {gesture:'Move the magnet',description:'Hold one finger on the filings and drag slowly to shape them.'},
+      {gesture:'Push or pull',description:'Choose Attract to gather the filings or Repel to scatter them.'},
+      {gesture:'Let go',description:'Lift your finger and the filings relax back into place.'},
+    ],
     keyboardHint: <>Arrows to aim <span>·</span> hold <kbd>space</kbd> to activate</>,
   },
   load: () => import('../magnetic-dust/entry'),

@@ -1,0 +1,142 @@
+/* Shared browser UI: keep gestures on the canvas and navigation easy to tap. */
+.toy button,.toy a,.toy label{touch-action:manipulation}
+.guide-trigger{display:flex;align-items:center;justify-content:center;gap:8px;margin-left:auto;flex:none;min-height:44px;padding:0 14px;border-radius:24px;color:var(--toy-accent);font-size:13px}
+.guide-trigger svg{width:22px;height:22px}
+.collection-label-short{display:none}
+.play-guide{color:var(--toy-foreground);width:min(460px,calc(100% - 32px));max-height:calc(100svh - 32px);padding:26px;border-radius:28px;overflow:hidden}
+.play-guide[open]{display:flex;flex-direction:column;animation:panel-enter .22s ease-out}
+.play-guide::backdrop{background:#0b151545;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+.guide-heading{flex:none;margin-bottom:20px}
+.guide-heading>span{font-size:13px;color:var(--toy-accent)}
+.guide-heading h2{font-size:26px;line-height:1.2;letter-spacing:-.6px;font-weight:500;margin:6px 0 0}
+.guide-gestures{list-style:none;margin:0;padding:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;min-height:0}
+.guide-gestures li+li{margin-top:20px}
+.guide-gestures strong{font-size:15px;font-weight:600}
+.guide-gestures p{font-size:14px;line-height:1.55;margin:5px 0 0}
+.guide-keyboard{font-size:12px;line-height:1.7;margin:18px 0 0;color:var(--toy-muted)}
+.guide-keyboard kbd{font:inherit}
+.guide-reset-note{flex:none;font-size:12px;margin:20px 0 16px;color:var(--toy-muted)}
+.guide-close{flex:none;border:0;background:var(--toy-accent);color:var(--toy-surface);border-radius:24px;min-height:48px;font-size:15px;font-weight:500}
+.guide-trigger:active,.guide-close:active{filter:brightness(.94)}
+.toy .sound-toggle[aria-pressed=true]{background:color-mix(in srgb,var(--toy-accent) 14%,transparent)}
+
+/* Targets are sized in CSS pixels, including on touch-capable tablets. */
+@media(any-pointer:coarse),(max-width:700px),(max-height:450px){
+  .toy :is(button,.astra-switch a,.astra-connect-label){min-width:48px;min-height:48px}
+  .toy .toy-player[data-toy-id] .control-pill button{min-width:48px;min-height:48px;font-size:14px}
+  .toy .close-collection{width:48px;height:48px}
+  .toy .astra-motion-controls button{min-width:48px;min-height:48px;font-size:22px}
+  .toy .astra-motion-controls button:first-child{font-size:14px;min-width:96px}
+  .toy .astra-shape-bar>button{font-size:13px}
+  .toy .astra-switch a{display:grid;place-items:center;font-size:13px}
+  .toy .astra-draw-toolbar button,.toy .astra-connect-label{font-size:13px}
+  .toy .astra-connect-label input{width:22px;height:22px;flex:none}
+  .toy .slice-angle button{width:48px;height:48px;font-size:24px}
+  .toy .slice-angle span{font-size:13px}
+  .toy .magnet-polarity button,.toy .silk-palette button{font-size:14px}
+  .toy .astra-speed{font-size:13px}
+  .toy .astra-speed output{font-size:13px}
+  .toy .astra-speed input{appearance:none;-webkit-appearance:none;height:48px;background:transparent;padding:0;touch-action:pan-y}
+  .toy .astra-speed input::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:#64788b}
+  .toy .astra-speed input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:28px;height:28px;margin-top:-11px;border:2px solid #d6eaff;border-radius:50%;background:#d6eaff;box-shadow:0 2px 8px #0006}
+  .toy .astra-speed input::-moz-range-track{height:6px;border-radius:6px;background:#64788b}
+  .toy .astra-speed input::-moz-range-thumb{width:24px;height:24px;border:2px solid #d6eaff;border-radius:50%;background:#d6eaff}
+  .toy .astra-speed input:focus-visible{outline:2px solid #aad7fc;outline-offset:3px;border-radius:8px}
+  .toy .collection-trigger::before{animation:none}
+}
+
+@media(max-width:700px),(pointer:coarse){
+  .toy .masthead{gap:12px}
+  .toy .guide-trigger{width:48px;height:48px;padding:0}
+  .guide-trigger span{display:none}
+  .toy .wordmark{font-size:clamp(21px,6vw,26px)}
+  .toy .toy-player[data-toy-id] .interaction-dock{width:calc(100% - 24px);max-width:440px;padding:0;bottom:max(16px,calc(env(safe-area-inset-bottom) + 10px))}
+  .toy .control-cluster{gap:12px;max-width:100%}
+  .toy .control-pill{padding:4px}
+  .toy .toy-player[data-toy-id] .control-pill button{padding:0 14px}
+  .toy .toy-player[data-toy-id] .control-pill .sound-toggle{width:48px;padding:0}
+  .toy .control-pill svg{width:20px;height:20px}
+  .toy .collection-trigger{padding:0 18px;gap:8px}
+  .collection-label-full{display:none}
+  .collection-label-short{display:inline}
+  .toy .instructions-pointer{display:none}
+  .toy .instructions-touch{display:flex}
+  .toy .toy-player[data-toy-id] .instructions{max-width:100%;white-space:normal;justify-content:center;flex-wrap:wrap;gap:4px 14px;text-align:center;font-size:13px;line-height:1.5;margin-bottom:10px}
+  .toy .instructions span+span::before{display:none}
+  .toy .rotation-instructions{max-width:100%;white-space:normal;text-align:center;font-size:12px;line-height:1.5;margin:0 0 10px}
+  .toy .keyboard-hint,.guide-keyboard{display:none}
+  /* Keep the deliberately quiet Jelly/slicing views; Help exposes their gestures. */
+  .toy [data-desktop-instructions] :is(.instructions,.rotation-instructions){display:none}
+  .toy .collection-dialog{padding:18px;max-height:calc(88svh - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  .toy .collection-heading{margin-bottom:18px}
+  .toy .collection-list{gap:12px}
+  .toy .collection-count{margin-top:18px}
+  .play-guide{margin:auto 12px max(12px,env(safe-area-inset-bottom));width:calc(100% - 24px);max-height:calc(100svh - max(24px,env(safe-area-inset-top)) - env(safe-area-inset-bottom));padding:24px}
+  /* Collection already provides navigation between Swirl and Shapes. */
+  .toy .astra-switch{display:none}
+  .toy .astra-shape-bar{top:calc(max(22px,env(safe-area-inset-top)) + 62px);gap:10px;width:max-content;max-width:calc(100% - 24px)}
+  .toy .astra-shape-bar>button{padding:0 14px}
+  .toy .astra-shape-choice>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .toy .astra-shape-choice>span:last-child{margin-left:0}
+  .toy .astra-draw-button{flex-shrink:0}
+  .toy .astra-presets{top:58px;max-height:calc(100svh - 240px);overflow:auto;overscroll-behavior:contain}
+  .toy .astra-motion-controls{left:50%;right:auto;transform:translateX(-50%);bottom:calc(max(16px,calc(env(safe-area-inset-bottom) + 10px)) + 70px);gap:10px}
+  .toy .astra-motion-controls button:first-child{margin-right:0}
+  .toy .astra-speed{left:50%;transform:translateX(-50%);width:min(240px,calc(100% - 48px));bottom:calc(max(16px,calc(env(safe-area-inset-bottom) + 10px)) + 128px);gap:2px 12px}
+  .toy .astra-speed-reset{display:none}
+  .toy .astra-angle-readout{left:50%;transform:translateX(-50%);bottom:calc(max(16px,calc(env(safe-area-inset-bottom) + 10px)) + 132px)}
+  .toy .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .instructions{display:none}
+  .toy .silk-palette{top:calc(max(22px,env(safe-area-inset-top)) + 62px);bottom:auto;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px)}
+  .toy .silk-palette button{padding:0 10px}
+  .toy .magnet-polarity{top:calc(max(22px,env(safe-area-inset-top)) + 62px)}
+}
+
+/* Short browser viewports need edge controls instead of a central stack. */
+@media(max-height:450px) and (min-width:480px){
+  .toy .masthead{padding-top:max(10px,env(safe-area-inset-top))}
+  .toy .guide-trigger{width:48px;height:48px;padding:0}
+  .guide-trigger span{display:none}
+  .toy .toy-player[data-toy-id] .interaction-dock{bottom:max(10px,calc(env(safe-area-inset-bottom) + 6px));padding:0}
+  .toy .toy-player[data-toy-id] :is(.instructions,.rotation-instructions,.keyboard-hint){display:none}
+  .toy .astra-switch{display:none}
+  .toy .astra-shape-bar{top:max(72px,calc(env(safe-area-inset-top) + 62px));left:max(20px,env(safe-area-inset-left));transform:none;flex-direction:column;width:166px;gap:8px}
+  .toy .astra-shape-bar>button{width:100%;padding:0 10px;gap:6px}
+  .toy .astra-presets{top:0;left:calc(100% + 12px);transform:none;width:min(300px,calc(100vw - 222px));max-height:calc(100svh - 152px);overflow:auto}
+  .toy .astra-motion-controls{left:max(20px,env(safe-area-inset-left));right:auto;transform:none;bottom:max(10px,calc(env(safe-area-inset-bottom) + 6px));gap:8px}
+  .toy .astra-motion-controls button:first-child{margin-right:0}
+  .toy .astra-speed{width:166px;left:max(20px,env(safe-area-inset-left));transform:none;bottom:calc(max(10px,calc(env(safe-area-inset-bottom) + 6px)) + 64px);gap:0 10px}
+  .toy .astra-speed-reset{display:none}
+  .toy .astra-angle-readout{left:max(20px,env(safe-area-inset-left));transform:none;bottom:calc(max(10px,calc(env(safe-area-inset-bottom) + 6px)) + 66px);font-size:10px}
+  .toy .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .interaction-dock{width:auto;left:auto;right:max(20px,env(safe-area-inset-right));transform:none}
+  .toy .astra-draw-overlay{display:grid;grid-template-columns:minmax(0,1fr) 190px;grid-template-rows:auto minmax(0,1fr) auto;gap:10px 18px;padding:16px max(20px,env(safe-area-inset-right)) 12px max(20px,env(safe-area-inset-left))}
+  .toy .astra-draw-overlay[hidden]{display:none}
+  .toy .astra-draw-heading{grid-column:1/-1}
+  .toy .astra-draw-heading h2{font-size:22px;margin:0}
+  .toy .astra-draw-heading :is(.astra-eyebrow,p){display:none}
+  .toy .astra-drawing-frame{grid-column:1;grid-row:2;min-height:0;height:100%}
+  .toy .astra-draw-message{grid-column:1;grid-row:3;margin:0;height:24px}
+  .toy .astra-draw-toolbar{grid-column:2;grid-row:2/4;display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:8px;min-height:0;overflow:auto}
+  .toy .astra-draw-toolbar button{padding:0 10px}
+  .toy .astra-draw-toolbar :is(.astra-connect-label,.astra-animate-button,button:nth-of-type(3)){grid-column:1/-1}
+  .toy .astra-draw-toolbar .astra-animate-button{min-width:0}
+  .toy .slice-angle{left:50%;right:auto;transform:translateX(-50%);top:max(10px,env(safe-area-inset-top))}
+  .toy .slice-count{right:auto;left:50%;transform:translateX(-50%);top:max(72px,calc(env(safe-area-inset-top) + 62px))}
+  .toy .silk-palette,.toy .magnet-polarity{top:max(10px,env(safe-area-inset-top))}
+  .toy:has(.silk-palette) .wordmark,.toy:has(.magnet-polarity) .wordmark{font-size:20px;gap:6px}
+  .play-guide{margin:auto;max-height:calc(100svh - 24px);width:min(560px,calc(100% - 40px));padding:20px}
+  .guide-heading{margin-bottom:14px}
+  .guide-heading h2{font-size:22px}
+  .guide-heading>span{display:none}
+  .guide-reset-note{margin:12px 0}
+}
+
+@media(hover:none){
+  .toy .collection-trigger:hover,.toy .collection-item:hover{transform:none}
+}
+
+@media(max-height:340px) and (min-width:480px){
+  .toy:has(.astra-shape-bar) .wordmark>span{display:none}
+  .toy .astra-shape-bar{flex-direction:row;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 176px)}
+  .toy .astra-shape-bar>button{width:auto}
+  .toy .astra-presets{top:58px;left:50%;transform:translateX(-50%);width:min(300px,calc(100vw - 40px))}
+}

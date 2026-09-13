@@ -1,22 +1,23 @@
-import { drawingOutline, PRESET_OUTLINES, cursorOutline, type DrawStroke, type Outline } from './paths';
+import { circleOutline, drawingOutline, PRESET_OUTLINES, type DrawStroke, type Outline } from './paths';
 
 const STORAGE_KEY = 'astra-shape-studio-v1';
 export const DEFAULT_FLOW_SPEED = .14;
-export type StudioState = { preset: string; speed: number; strokes: DrawStroke[]; connectEnds: boolean };
+export type StudioState = { preset: string; speed: number; strokes: DrawStroke[]; connectEnds: boolean; defaultVersion: number };
 export function loadStudioState(persist = true): StudioState {
-  const fallback: StudioState = {preset:'cursor',speed:1,strokes:[],connectEnds:false};
+  const fallback: StudioState = {preset:'circle',speed:1,strokes:[],connectEnds:false,defaultVersion:2};
   if (!persist) return fallback;
   try {
     const text = localStorage.getItem(STORAGE_KEY);
     if (!text || text.length > 300000) return fallback;
     const data = JSON.parse(text);
     const strokes: DrawStroke[] = Array.isArray(data.strokes) ? data.strokes.slice(0,16).filter(Array.isArray).map((stroke: unknown[]) => stroke.slice(0,1600).filter((p): p is [number,number] => Array.isArray(p) && p.length === 2 && p.every(x => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) < 100))) : [];
-    return {preset:typeof data.preset === 'string' ? data.preset : 'cursor',speed:Number.isFinite(data.speed) ? Math.max(.25,Math.min(3,data.speed)) : 1,strokes,connectEnds:data.connectEnds === true};
+    const savedPreset = typeof data.preset === 'string' ? data.preset : 'circle';
+    return {preset:data.defaultVersion === 2 ? savedPreset : savedPreset === 'cursor' ? 'circle' : savedPreset,speed:Number.isFinite(data.speed) ? Math.max(.25,Math.min(3,data.speed)) : 1,strokes,connectEnds:data.connectEnds === true,defaultVersion:2};
   } catch { return fallback; }
 }
 export function studioOutline(state: StudioState): Outline {
-  if (state.preset === 'custom') { try { return drawingOutline(state.strokes,state.connectEnds); } catch { return cursorOutline; } }
-  return PRESET_OUTLINES.find(p => p.id === state.preset) ?? cursorOutline;
+  if (state.preset === 'custom') { try { return drawingOutline(state.strokes,state.connectEnds); } catch { return circleOutline; } }
+  return PRESET_OUTLINES.find(p => p.id === state.preset) ?? circleOutline;
 }
 
 function icon(outline: Outline) {

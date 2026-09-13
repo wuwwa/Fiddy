@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import type { ToyContext, ToyController } from '../toys/types';
-import { SliceModel, MAX_PIECES, area, type Point, type SliceKind } from './model';
+import { SliceModel, MAX_PIECES, area, center, type Point, type SliceKind } from './model';
 import { DEFAULT_CUT_ANGLE, findCut, KnifePress, type CutLine } from './knife';
 import { SliceRenderer } from './render';
 import { SliceAudio } from './audio';
 import { SliceGesture } from './gesture';
+import { SlashTrail, drawSlash } from './slash';
 import './style.css';
 
 export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKind): ToyController | null {
@@ -23,8 +24,9 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
   const limitLabel = document.createElement('strong'); limitLabel.textContent = `${MAX_PIECES} pieces · limit reached`;
   const resetButton = document.createElement('button'); resetButton.textContent = 'Reset jelly'; resetButton.setAttribute('aria-label', 'Start with a fresh block');
   limitCue.append(limitLabel, resetButton);
-  const stroke = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); stroke.classList.add('slice-stroke'); stroke.setAttribute('aria-hidden', 'true');
-  const strokeLine = document.createElementNS(stroke.namespaceURI, 'line'); stroke.append(strokeLine);
+  const stroke = document.createElement('canvas'); stroke.className = 'slice-stroke'; stroke.setAttribute('aria-hidden', 'true');
+  const strokeContext = stroke.getContext('2d'), slash = new SlashTrail();
+  let strokeRatio = 1, strokeDrawn = false;
   const angleControl = document.createElement('div'); angleControl.className = 'slice-angle floating-surface'; angleControl.setAttribute('role', 'group'); angleControl.setAttribute('aria-label', 'Wire angle');
   const left = document.createElement('button'), right = document.createElement('button'), angleLabel = document.createElement('span');
   left.textContent = '↶'; right.textContent = '↷'; left.setAttribute('aria-label', 'Rotate wire counterclockwise'); right.setAttribute('aria-label', 'Rotate wire clockwise');
@@ -47,6 +49,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
   function diagnostics() {
     if (import.meta.env.DEV) canvas.dataset.diagnostics = JSON.stringify({ kind, frames, paused, reduced, pieces: model.pieces.length, cuts: model.cuts,
       moving: model.moving || press.moving, pointer: pointer?.id ?? null, gesture: pointer?.gesture.mode ?? null, keyboard: keys.has('Space'), limit: MAX_PIECES,
+      slash: { active: slash.active, samples: slash.count },
       knife: { phase: press.phase, depth: +press.depth.toFixed(4), speed: +press.speed.toFixed(4), pressure: press.pressure, tension: press.tension, resistance: press.resistance, canCut: !!aim },
       frameMs: +frameMs.toFixed(2), area: model.pieces.reduce((sum, p) => sum + area(p.polygon), 0), memory: view.diagnostics, audio: audio.diagnostics, width: canvas.width, height: canvas.height });
   }
@@ -58,11 +61,13 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     const countText = `${model.pieces.length} / ${MAX_PIECES} pieces`;
     if (pieceCount.textContent !== countText) pieceCount.textContent = countText;
     const swipe = pointer?.gesture.mode === 'swipe' ? pointer : null;
-    stroke.classList.toggle('is-active', !!swipe && !atLimit);
-    if (swipe) {
-      strokeLine.setAttribute('x1', String(swipe.gesture.screenStart.x - swipe.rect.left)); strokeLine.setAttribute('y1', String(swipe.gesture.screenStart.y - swipe.rect.top));
-      strokeLine.setAttribute('x2', String(swipe.gesture.screenEnd.x - swipe.rect.left)); strokeLine.setAttribute('y2', String(swipe.gesture.screenEnd.y - swipe.rect.top));
+    const now = performance.now(); slash.update(now, reduced);
+    stroke.classList.toggle('is-active', slash.active);
+    if (strokeContext && (slash.active || strokeDrawn)) {
+      strokeContext.clearRect(0, 0, stroke.width / strokeRatio, stroke.height / strokeRatio);
+      if (slash.active) drawSlash(strokeContext, slash, context.theme.accent, now, reduced);
     }
+    strokeDrawn = slash.active;
     tensionCue.hidden = !pointer?.pulling || press.phase !== 'cutting';
     if (!tensionCue.hidden) {
       const full = press.tension >= .98;
@@ -70,13 +75,28 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
       tensionCue.classList.toggle('is-full', full);
       tensionMeter.value = press.tension;
     }
-    view.update(model, press, swipe ? null : aim, reduced); view.render(elapsedMs); frames++; diagnostics();
+    view.update(model, press, swipe || slash.active ? null : aim, reduced); view.render(elapsedMs); frames++; diagnostics();
   }
-  function cut(start: Point, end: Point) {
-    const count = model.slice(start, end, reduced);
+  function cut(start: Point, end: Point, swipeStrength = 0) {
+    const count = model.slice(start, end, reduced, swipeStrength);
     if (count) {
       meshDirty = true; aimDirty = true;
-      if (!pointer?.gesture.cut) { audio.finish(); soundTail = .85; }
+      if (!pointer?.gesture.cut) {
+        audio.finish(); soundTail = .85;
+        if (pointer && swipeStrength > 0 && !reduced) {
+          let x = 0, z = 0, weight = 0;
+          for (const piece of model.pieces) if (piece.bornStroke === model.stroke) {
+            const c = center(piece.polygon), a = area(piece.polygon);
+            x += (c.x + piece.offset.x) * a; z += (c.z + piece.offset.z) * a; weight += a;
+          }
+          if (weight) {
+            target.set(x / weight, view.height * .85, z / weight).project(view.camera);
+            const { rect, gesture } = pointer;
+            slash.burst((target.x + 1) * rect.width / 2, (1 - target.y) * rect.height / 2,
+              gesture.screenEnd.x - gesture.screenStart.x, gesture.screenEnd.y - gesture.screenStart.y, performance.now());
+          }
+        }
+      }
       if (pointer) pointer.gesture.cut = true;
       setStatus(model.pieces.length >= MAX_PIECES ? `${MAX_PIECES} pieces. Reset to cut again.` : `${model.pieces.length} pieces.`);
     }
@@ -84,7 +104,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
   }
   function flushSwipe() {
     const segment = pointer?.gesture.consume();
-    if (segment) cut(segment.start, segment.end);
+    if (segment) cut(segment.start, segment.end, .45 + .55 * Math.min(1, (pointer?.gesture.speed ?? 0) / 2.4));
   }
   function wake() { if (!disposed && !paused && !frame) { lastFrame = 0; frame = requestAnimationFrame(tick); } }
   function tick(now: number) {
@@ -114,7 +134,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
       if (press.phase === 'idle' && model.pieces.length >= MAX_PIECES) setStatus('Cut limit reached. Reset to cut again.');
       draw(elapsedMs);
     } catch (error) { dispose(); context.onError(error instanceof Error ? error.message : 'The jelly stopped. Please try again.'); return; }
-    if (press.moving || model.moving || soundTail > 0 || (keys.size && !keys.has('Space'))) frame = requestAnimationFrame(tick);
+    if (press.moving || model.moving || slash.active || soundTail > 0 || (keys.size && !keys.has('Space'))) frame = requestAnimationFrame(tick);
   }
   function point(event: PointerEvent): Point {
     const rect = canvas.getBoundingClientRect();
@@ -133,7 +153,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     const finishing = (press.phase === 'complete' || pointer?.gesture.cut) && !immediate;
     const old = pointer; pointer = null;
     tensionCue.hidden = true;
-    stroke.classList.remove('is-active');
+    if (immediate || reduced) { slash.clear(); stroke.classList.remove('is-active'); }
     if (old) { try { if (canvas.hasPointerCapture(old.id)) canvas.releasePointerCapture(old.id); } catch { /* Capture may already be gone. */ } }
     press.release(immediate); keys.delete('Space'); if (!finishing) audio.reset(); soundTail = finishing ? .85 : .25;
     left.disabled = right.disabled = false; aimDirty = true;
@@ -147,6 +167,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     updateAim();
     const canHold = !!aim && model.contains(aimPoint);
     pointer = { id: event.pointerId, gesture: new SliceGesture(aimPoint, { x: event.clientX, y: event.clientY }, event.timeStamp, canHold), rect: canvas.getBoundingClientRect(), pulling: false, touch: event.pointerType === 'touch' };
+    slash.begin(event.clientX - pointer.rect.left, event.clientY - pointer.rect.top, event.timeStamp);
     if (canHold) begin();
     else { model.beginStroke(); setStatus('Swipe across the jelly to cut.'); context.onInteractionChange(true); left.disabled = right.disabled = true; wake(); }
   }
@@ -154,7 +175,14 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     if (!pointer) return;
     const gesture = pointer.gesture;
     gesture.move(point(event), { x: event.clientX, y: event.clientY }, event.timeStamp);
-    if (gesture.mode === 'swipe') { press.reset(); tensionCue.hidden = true; }
+    if (gesture.mode === 'swipe') {
+      press.reset(); tensionCue.hidden = true;
+      const samples = event.getCoalescedEvents?.() ?? [];
+      for (let i = Math.max(0, samples.length - 48); i < samples.length; i++) {
+        const sample = samples[i]; slash.add(sample.clientX - pointer.rect.left, sample.clientY - pointer.rect.top, sample.timeStamp);
+      }
+      slash.add(event.clientX - pointer.rect.left, event.clientY - pointer.rect.top, event.timeStamp);
+    }
     else if (gesture.mode === 'hold' && press.phase === 'cutting') {
       const pull = event.clientY - gesture.screenStart.y;
       if (pull > 6 && !pointer.pulling) { pointer.pulling = true; setStatus('Pulling down increases wire tension. Keep holding to cut.'); }
@@ -205,7 +233,13 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     release(true); keys.clear(); keyboard = false; model.reset(); meshDirty = true; aimPoint = { x: 0, z: 0 }; angle = DEFAULT_CUT_ANGLE; aimDirty = true;
     audio.reset(); setStatus('Jelly reset.'); draw(); wake();
   }
-  function resize() { if (disposed) return; release(true); const rect = host.getBoundingClientRect(); view.resize(Math.max(1, rect.width), Math.max(1, rect.height)); draw(); wake(); }
+  function resize() {
+    if (disposed) return; release(true); const rect = host.getBoundingClientRect();
+    strokeRatio = Math.min(devicePixelRatio || 1, 1.5);
+    stroke.width = Math.max(1, Math.round(rect.width * strokeRatio)); stroke.height = Math.max(1, Math.round(rect.height * strokeRatio));
+    strokeContext?.setTransform(strokeRatio, 0, 0, strokeRatio, 0, 0); strokeDrawn = false;
+    view.resize(Math.max(1, rect.width), Math.max(1, rect.height)); draw(); wake();
+  }
   const observer = new ResizeObserver(() => { try { resize(); } catch (error) { dispose(); context.onError(String(error)); } });
   function lost(event: Event) { event.preventDefault(); dispose(); context.onError('Graphics were interrupted. Try again for a fresh block.'); }
   function dispose() {
@@ -216,6 +250,7 @@ export function mountSlice(host: HTMLElement, context: ToyContext, kind: SliceKi
     left.removeEventListener('click', rotateLeft); right.removeEventListener('click', rotateRight); resetButton.removeEventListener('click', reset);
     window.removeEventListener('blur', blur); document.removeEventListener('visibilitychange', visibility); context.signal.removeEventListener('abort', dispose);
     audio.dispose(); view.dispose(); canvas.remove(); stroke.remove(); status.remove(); angleControl.remove(); pieceCount.remove(); tensionCue.remove(); limitCue.remove();
+    stroke.width = stroke.height = 0;
   }
   try {
     view.rebuild(model); resize();

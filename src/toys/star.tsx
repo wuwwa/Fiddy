@@ -19,7 +19,7 @@ export const star: ToyDefinition = {
   copy: {
     loading: 'Loading star',
     instructions: ['Hold to press in', 'Drag the tips to stretch'],
-    touchInstructions: ['Hold to press', 'Two fingers to pinch & stretch'],
+    touchInstructions: ['Hold to press', 'Drag the tips'],
     ...softBodyControls,
   },
   load: () => import('../star/entry'),

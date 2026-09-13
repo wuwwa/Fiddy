@@ -12,6 +12,11 @@ export const asciiTide: ToyDefinition = {
   copy: {
     loading: 'Gathering the tide',
     instructions: ['Move to disturb', 'Hold to draw a vortex'],
+    touchInstructions: ['Drag to stir', 'Hold to gather'],
+    touchGuide: [
+      {gesture:'Stir the tide',description:'Slide a finger through the characters to send waves across the surface.'},
+      {gesture:'Hold a vortex',description:'Keep your finger in one spot to gather the tide. Lift it to let the waves settle.'},
+    ],
     keyboardHint: <>Arrows to move <span>·</span> hold <kbd>space</kbd> to gather</>,
   },
   load: () => import('../ascii-tide/entry'),

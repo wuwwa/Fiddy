@@ -10,6 +10,10 @@ const theme = { background: '#03080d', foreground: '#e0eaf2', accent: '#dcebf5',
 const copy = {
   loading: 'Gathering starlight', instructions: ['Grab to rotate', 'Scroll to look closer'],
   touchInstructions: ['Drag to rotate', 'Release to let it drift'],
+  touchGuide: [
+    {gesture:'Drag to rotate',description:'Slide one finger across the stars. Lift your finger to let them drift.'},
+    {gesture:'Look closer',description:'Tap + to zoom in or − to zoom out. Pause stops the automatic motion.'},
+  ],
   keyboardHint: <><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> rotate <span>·</span> <kbd>Q</kbd><kbd>E</kbd> roll <span>·</span> <kbd>space</kbd> pause</>,
 };
 export const astraSwirl: ToyDefinition = {
@@ -18,5 +22,8 @@ export const astraSwirl: ToyDefinition = {
 };
 export const astraCursor: ToyDefinition = {
   id: 'astra-cursor', name: 'Shapes', description: 'Draw an outline or choose a shape. Watch starlight flow around it.',
-  icon: CursorIcon, theme, copy, load: () => import('../astra/cursor'),
+  icon: CursorIcon, theme, copy: { ...copy, touchGuide: [...copy.touchGuide,
+    {gesture:'Make it yours',description:'Choose an outline or tap Draw a shape. Sketch with your finger, then tap Animate drawing.'},
+    {gesture:'Set the pace',description:'Drag the Flow speed slider to slow down or speed up the stars.'},
+  ] }, load: () => import('../astra/cursor'),
 };

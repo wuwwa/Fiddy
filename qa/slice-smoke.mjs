@@ -85,8 +85,14 @@ try {
     await send('Page.navigate', {url:`${origin}/?toy=${toy}`});
     await waitFor(s=>s?.knife?.canCut, `${toy} ready`);await delay(200);
     const baseline=await stats();record(`${toy} new gel and knife`,{state:baseline,screenshot:await screenshot(`${toy}-desktop`)});
-    await drag([-2.7,0],[2.7,0],false,160);
+    await drag([-2.7,0],[2.7,0],false,160,async()=>{
+      assert.equal(await evaluate(`document.querySelector('.slice-stroke').classList.contains('is-active')`),true);
+      await screenshot(`${toy}-swipe-line`);
+    });
     await waitFor(s=>s.pieces===2&&s.pointer===null,'Mouse swipe splits the jelly');
+    assert.equal((await stats()).slash.active,true,'The blade fades out after release');
+    await screenshot(`${toy}-swipe-fade`);
+    await waitFor(s=>!s.slash.active,'The blade and droplets finish promptly');
     assert.equal((await stats()).cuts,1); assert.equal((await stats()).memory.rebuilds,baseline.memory.rebuilds+1);
     assert.equal(await evaluate(`document.querySelector('.slice-count').textContent`),'2 / 48 pieces');
     record(`${toy} mouse swipe`,{state:await stats(),screenshot:await screenshot(`${toy}-swipe`)});
@@ -162,11 +168,14 @@ try {
     await send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
     await waitFor(s=>s.pointer===null,'Swipe cancelled');assert.equal((await stats()).pieces,1);
     assert.equal(await evaluate(`document.querySelector('.slice-stroke').classList.contains('is-active')`),false);
+    assert.equal((await stats()).slash.active,false,'Cancellation clears the blade and droplets');
     await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(80);
     for(let i=0;i<160&&(await stats()).pieces<48;i++){
       const a=i*2.399963,o=Math.sin(i*8.1)*1.2;
       const start=await world(-3.5*Math.cos(a)-o*Math.sin(a),-3.5*Math.sin(a)+o*Math.cos(a));
       const end=await world(3.5*Math.cos(a)-o*Math.sin(a),3.5*Math.sin(a)+o*Math.cos(a));
+      // Keep synthetic touches on the play area, away from browser edge gestures.
+      for(const p of [start,end]){p.x=Math.max(18,Math.min(372,p.x));p.y=Math.max(170,Math.min(664,p.y));}
       await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...start,id:1}]});
       await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...end,id:1}]});
       await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(20);
@@ -187,11 +196,12 @@ try {
     await send('Emulation.setEmulatedMedia',{features:[]});await send('Emulation.setDeviceMetricsOverride',{width:1100,height:800,deviceScaleFactor:1,mobile:false});await send('Emulation.setTouchEmulationEnabled',{enabled:false});
   }
   await click('.collection-trigger');
+  for(const kind of ['slab','prism']) {
   const performanceResult=await evaluate(`(async()=>{
     const {SliceRenderer}=await import('/src/slicing/render.ts'),{SliceModel}=await import('/src/slicing/model.ts'),{KnifePress,findCut,DEFAULT_CUT_ANGLE}=await import('/src/slicing/knife.ts');
-    const {jellySlice}=await import('/src/toys/slicing.tsx');
+    const {jellySlice,jellyPrism}=await import('/src/toys/slicing.tsx');
     const canvas=document.createElement('canvas');canvas.style.cssText='position:fixed;inset:0;width:1100px;height:800px;z-index:100';document.body.append(canvas);
-    const view=new SliceRenderer(canvas,'slab',jellySlice.theme),model=new SliceModel('slab'),press=new KnifePress();
+    const kind=${JSON.stringify(kind)},view=new SliceRenderer(canvas,kind,kind==='prism'?jellyPrism.theme:jellySlice.theme),model=new SliceModel(kind),press=new KnifePress();
     const line=findCut(model,{x:0,z:0},DEFAULT_CUT_ANGLE);press.begin(line);press.depth=.5;
     view.resize(1100,800);view.rebuild(model);
     const measure=async()=>{const samples=[],versions=[view.gel.geometry.attributes.position.version,view.gel.geometry.attributes.normal.version];
@@ -208,7 +218,8 @@ try {
   assert.equal(performanceResult.one.memory.textures,performanceResult.many.memory.textures);
   assert.equal(performanceResult.one.memory.geometries,performanceResult.many.memory.geometries);
   assert.deepEqual(performanceResult.many.versions,performanceResult.many.versionsAfter);
-  record('One versus 48 pieces: fixed draw count and zero animated surface uploads',performanceResult);
+  record(kind+': one versus 48 pieces, fixed draw count and zero animated surface uploads',performanceResult);
+  }
   const voiceResult=await evaluate(`(async()=>{
     const {SliceAudio}=await import('/src/slicing/audio.ts'),ctx=new AudioContext(),connected=new Set();let peak=0;
     const adapter=new Proxy(ctx,{get(target,key){if(key==='createBufferSource')return()=>{const s=ctx.createBufferSource(),connect=s.connect.bind(s),disconnect=s.disconnect.bind(s);s.connect=(...a)=>{connected.add(s);peak=Math.max(peak,connected.size);return connect(...a);};s.disconnect=(...a)=>{connected.delete(s);return disconnect(...a);};return s;};const v=Reflect.get(target,key,target);return typeof v==='function'?v.bind(target):v;}});

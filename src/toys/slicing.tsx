@@ -11,6 +11,11 @@ const copy: ToyDefinition['copy'] = {
   desktopInstructionsOnly: true,
   instructions: ['Swipe across to cut', 'Hold, then drag down for tension'],
   touchInstructions: ['Swipe across to cut', 'Hold, then slide down for tension'],
+  touchGuide: [
+    {gesture:'Swipe to slice',description:'Swipe all the way across the jelly. Start just outside it and finish on the other side.'},
+    {gesture:'Try a slow cut',description:'Hold a finger on the jelly, then slide down to pull the wire taut. Keep holding until it cuts.'},
+    {gesture:'Change the angle',description:'Tap the angle arrows above the jelly to turn the cutting wire.'},
+  ],
   keyboardHint: <>Arrows to aim <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to angle <span>·</span> hold <kbd>space</kbd> to cut</>,
 };
 export const jellySlice: ToyDefinition = {

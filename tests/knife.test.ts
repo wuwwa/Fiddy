@@ -111,8 +111,8 @@ test('knife finds real fragments and rejects empty planes and razor-thin scraps'
   assert.equal(findCut(model, { x: 0, z: 0 }, 0), null, 'The previous empty seam should not cut');
   assert.ok(findCut(model, { x: 0, z: .5 }, 0));
 });
-test('48 fragments use one fixed geometry and do not recompute or upload their surface while animating', () => {
-  const model = new SliceModel('slab'), gel = new BatchedGel(1.02, false);
+for (const kind of ['slab', 'prism'] as const) test(`${kind}: 48 fragments use one fixed geometry without surface uploads while animating`, () => {
+  const model = new SliceModel(kind), gel = new BatchedGel(kind === 'prism' ? 1.22 : 1.02, kind === 'prism');
   const position = gel.geometry.attributes.position, normal = gel.geometry.attributes.normal, material = gel.material;
   try {
     assert.ok(position instanceof BufferAttribute && normal instanceof BufferAttribute);
@@ -129,5 +129,26 @@ test('48 fragments use one fixed geometry and do not recompute or upload their s
     assert.ok(gel.vertices < position.count);
     for (let i = 0; i < gel.vertices * 3; i++) assert.ok(Number.isFinite(position.array[i]) && Number.isFinite(normal.array[i]));
     model.reset(); gel.rebuild(model.pieces); assert.equal(gel.geometry.attributes.position, position);
+  } finally { gel.dispose(); }
+});
+
+test('prism pieces wobble independently, keep their base anchored, and settle for reduced motion', () => {
+  const model = new SliceModel('prism'), gel = new BatchedGel(1.22, true);
+  try {
+    model.beginStroke(); model.slice({ x: -3, z: 0 }, { x: 3, z: 0 }); gel.rebuild(model.pieces);
+    for (let i = 0; i < 8; i++) model.step(1 / 60, false);
+    gel.update(model.pieces, false);
+    assert.ok(gel.poses[0].z * gel.poses[1].z < 0, 'Neighbors lean independently after separation');
+    assert.notEqual(gel.poses[0].w, gel.poses[1].w);
+    const positions = gel.geometry.attributes.position, normals = gel.geometry.attributes.normal;
+    for (let i = 0; i < gel.vertices; i++) {
+      assert.ok(positions.getY(i) >= .0149, 'Rounded surfaces stay above the supporting plane');
+      assert.ok(Math.abs(Math.hypot(normals.getX(i), normals.getY(i), normals.getZ(i)) - 1) < 1e-5);
+    }
+    gel.update(model.pieces, true);
+    for (const pose of gel.poses.slice(0, 2)) { assert.equal(pose.z, 0); assert.equal(pose.w, 0); }
+    for (let i = 0; i < 120; i++) model.step(1 / 60, false);
+    gel.update(model.pieces, false);
+    for (const pose of gel.poses.slice(0, 2)) { assert.equal(pose.z, 0); assert.equal(pose.w, 0); }
   } finally { gel.dispose(); }
 });

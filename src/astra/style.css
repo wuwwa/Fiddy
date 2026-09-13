@@ -4,6 +4,7 @@
 .astra-switch{position:absolute;z-index:2;top:28px;left:50%;transform:translateX(-50%);display:flex;gap:3px;padding:4px;border:1px solid #ffffff17;border-radius:30px;background:#0b111980;backdrop-filter:blur(14px)}
 .astra-switch a{padding:8px 20px;min-width:85px;text-align:center;font-size:12px;color:#81919d;text-decoration:none;border-radius:22px;transition:color .2s,background .2s}
 .astra-switch a:hover{color:#fff}.astra-switch a[aria-current]{background:#ffffff13;color:#e8f0f6}
+.astra-angle-readout{position:absolute;z-index:2;left:40px;bottom:32px;padding:9px 13px;border:1px solid #ffffff12;border-radius:18px;background:#0b111980;color:#cad5dd;font:500 12px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em;font-variant-numeric:tabular-nums;backdrop-filter:blur(14px);pointer-events:none}
 .astra-motion-controls{position:absolute;z-index:2;bottom:34px;right:40px;display:flex;align-items:center;gap:6px}
 .astra-motion-controls button{min-height:40px;min-width:40px;background:#ffffff06;border:1px solid #ffffff12;color:#b7c5d0;border-radius:50%;font-size:19px;transition:background .2s}
 .astra-motion-controls button:first-child{font-size:12px;border-radius:30px;padding:0 17px;margin-right:9px;min-width:88px}
@@ -13,15 +14,16 @@
 .toy:has(.astra-surface) .wordmark>svg{width:25px;height:25px}
 .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .instructions{color:#bdcad3;font-size:12px;margin-bottom:14px}
 .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .keyboard-hint{color:#93a4b1}
-@media(max-width:900px){.astra-motion-controls{right:25px;gap:4px}.astra-motion-controls button:first-child{margin-right:2px}}
+@media(max-width:900px){.astra-angle-readout{left:25px}.astra-motion-controls{right:25px;gap:4px}.astra-motion-controls button:first-child{margin-right:2px}}
 @media(max-width:700px){
  .astra-switch{top:79px}.astra-switch a{padding:7px 19px;min-width:76px}
  .toy:has(.astra-surface) .wordmark{font-size:23px}.toy:has(.astra-surface) .wordmark>svg{width:23px}
+ .astra-angle-readout{left:50%;bottom:194px;transform:translateX(-50%);white-space:nowrap;font-size:11px}
  .astra-motion-controls{bottom:138px;right:50%;transform:translateX(50%);gap:7px;white-space:nowrap}
  .astra-motion-controls button{min-width:40px;min-height:40px}
  .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .instructions{font-size:11px}
 }
-@media(max-height:570px) and (min-width:701px){.astra-motion-controls{bottom:23px}.astra-switch{top:18px}}
+@media(max-height:570px) and (min-width:701px){.astra-angle-readout{bottom:28px}.astra-motion-controls{bottom:23px}.astra-switch{top:18px}}
 
 .astra-shape-bar{position:absolute;z-index:4;top:86px;left:50%;transform:translateX(-50%);display:flex;gap:7px;white-space:nowrap}
 .astra-shape-bar>button{display:flex;align-items:center;justify-content:center;gap:9px;height:39px;border:1px solid #c5e1ff22;background:#0b151ddd;color:#d8e6ef;border-radius:24px;font-family:inherit;font-size:12px;font-weight:500;padding:0 15px;backdrop-filter:blur(18px);cursor:pointer}

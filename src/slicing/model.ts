@@ -26,7 +26,19 @@ export function center(polygon: readonly Point[]): Point {
   return { x: x / (3 * weight), z: z / (3 * weight) };
 }
 export function silhouette(kind: SliceKind): Point[] {
-  if (kind === 'prism') return Array.from({ length: 6 }, (_, i) => ({ x: 1.65 * Math.cos(i * Math.PI / 3), z: 1.65 * Math.sin(i * Math.PI / 3) }));
+  if (kind === 'prism') {
+    const corners = Array.from({ length: 6 }, (_, i) => ({ x: 1.65 * Math.cos(i * Math.PI / 3), z: 1.65 * Math.sin(i * Math.PI / 3) }));
+    // Retain six broad faces, with the softly rounded corners of a jelly mold.
+    return corners.flatMap((corner, i) => {
+      const previous = corners[(i + 5) % 6], next = corners[(i + 1) % 6];
+      const a = { x: corner.x + (previous.x - corner.x) * .14, z: corner.z + (previous.z - corner.z) * .14 };
+      const b = { x: corner.x + (next.x - corner.x) * .14, z: corner.z + (next.z - corner.z) * .14 };
+      return Array.from({ length: 7 }, (_, j) => {
+        const t = j / 6, u = 1 - t;
+        return { x: u * u * a.x + 2 * u * t * corner.x + t * t * b.x, z: u * u * a.z + 2 * u * t * corner.z + t * t * b.z };
+      });
+    });
+  }
   const points: Point[] = [];
   // A rounded square keeps a soft silhouette around perfectly planar new cuts.
   for (let corner = 0; corner < 4; corner++) {
@@ -113,12 +125,13 @@ export class SliceModel {
       return span && span[0] <= 0 && span[1] >= 0;
     });
   }
-  slice(start: Point, end: Point, reduced = false) {
+  slice(start: Point, end: Point, reduced = false, swipeStrength = 0) {
     if (this.pieces.length >= MAX_PIECES || !valid(start) || !valid(end)) return 0;
     let count = 0;
     const dx = end.x - start.x, dz = end.z - start.z, length = Math.hypot(dx, dz);
     if (length < .16) return 0;
     const normal = { x: -dz / length, z: dx / length };
+    const kick = Number.isFinite(swipeStrength) ? Math.max(0, Math.min(1, swipeStrength)) : 0;
     const result: Piece[] = [];
     for (const piece of this.pieces) {
       const halves = piece.bornStroke === this.stroke || this.pieces.length + count >= MAX_PIECES ? null
@@ -126,10 +139,10 @@ export class SliceModel {
       if (!halves) { result.push(piece); continue; }
       halves.forEach((polygon, i) => {
         const child = this.make(polygon, piece.offset, this.stroke), sign = i === 0 ? 1 : -1;
-        const distance = .105;
+        const distance = .105 + kick * .04;
         child.target = { x: piece.target.x + normal.x * sign * distance, z: piece.target.z + normal.z * sign * distance };
         if (reduced) { child.offset = { ...child.target }; child.age = 10; }
-        else child.velocity = { x: piece.velocity.x + normal.x * sign * .35, z: piece.velocity.z + normal.z * sign * .35 };
+        else child.velocity = { x: piece.velocity.x + normal.x * sign * (.35 + kick * 1.8), z: piece.velocity.z + normal.z * sign * (.35 + kick * 1.8) };
         result.push(child);
       });
       count++;

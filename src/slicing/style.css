@@ -5,9 +5,8 @@
 .slice-angle button:not(:disabled):hover{background:var(--toy-background)}
 .slice-angle button:not(:disabled):active{transform:scale(.92)}
 .slice-angle span{min-width:80px;text-align:center}
-.slice-stroke{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none;overflow:hidden}
+.slice-stroke{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
 .slice-stroke.is-active{display:block}
-.slice-stroke line{stroke:var(--toy-surface);stroke-width:2;stroke-linecap:round;filter:drop-shadow(0 0 2px var(--toy-accent))}
 .slice-count{position:absolute;top:calc(max(24px,env(safe-area-inset-top)) + 55px);left:50%;transform:translateX(-50%);margin:0;color:var(--toy-muted);font-size:12px;pointer-events:none;white-space:nowrap}
 .slice-limit{position:absolute;left:50%;bottom:calc(max(28px,env(safe-area-inset-bottom)) + 90px);transform:translateX(-50%);display:flex;align-items:center;gap:14px;width:max-content;max-width:calc(100% - 24px);padding:10px 12px 10px 18px;border-radius:22px;background:var(--toy-surface);border-color:var(--toy-accent)}
 .slice-limit[hidden],.slice-count[hidden]{display:none}

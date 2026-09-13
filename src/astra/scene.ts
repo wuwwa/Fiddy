@@ -1,4 +1,4 @@
-import { AdditiveBlending, Group, PerspectiveCamera, Points, Scene, ShaderMaterial, WebGLRenderer, type Vector3 } from 'three';
+import { AdditiveBlending, Euler, Group, MathUtils, PerspectiveCamera, Points, Scene, ShaderMaterial, WebGLRenderer, type Vector3 } from 'three';
 import type { ToyContext, ToyController } from '../toys/types';
 import { createCursorPathTexture, createStars, type AstraShape } from './geometry';
 import { RotationMotion, trackballPoint } from './rotation';
@@ -31,7 +31,9 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   const zoomIn = document.createElement('button'); zoomIn.type = 'button'; zoomIn.textContent = '+'; zoomIn.setAttribute('aria-label', 'Zoom in');
   const zoomLabel = document.createElement('span'); zoomLabel.className = 'astra-zoom-label'; zoomLabel.textContent = 'View';
   controls.append(motionButton, zoomLabel, zoomOut, zoomIn);
-  wrapper.append(canvas, tabs, controls); host.append(wrapper);
+  const angleReadout = shape === 'swirl' ? document.createElement('output') : null;
+  if (angleReadout) { angleReadout.className = 'astra-angle-readout'; angleReadout.setAttribute('aria-label', 'Current swirl angle'); }
+  wrapper.append(canvas, tabs, controls); if (angleReadout) wrapper.append(angleReadout); host.append(wrapper);
 
   let renderer: WebGLRenderer;
   try { renderer = new WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' }); }
@@ -73,13 +75,23 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   const haloPoints = new Points(artwork, makeMaterial(true, false)), corePoints = new Points(artwork, makeMaterial(false, false));
   sculpture.add(haloPoints, corePoints);
   const rotation = new RotationMotion();
+  const angleEuler = new Euler(0, 0, 0, 'XYZ');
+  function updateAngleReadout() {
+    if (!angleReadout) return;
+    angleEuler.setFromQuaternion(rotation.orientation, 'XYZ');
+    angleReadout.textContent = `ANGLE  X ${Math.round(MathUtils.radToDeg(angleEuler.x))}°  Y ${Math.round(MathUtils.radToDeg(angleEuler.y))}°  Z ${Math.round(MathUtils.radToDeg(angleEuler.z))}°`;
+  }
   function resetRotation() {
     rotation.reset();
-    if (shape === 'swirl') rotation.rotate(-.2, .26, -.12);
+    if (shape === 'swirl') rotation.orientation.setFromEuler(angleEuler.set(
+      MathUtils.degToRad(-70), MathUtils.degToRad(15), MathUtils.degToRad(-11), 'XYZ',
+    ));
+    updateAngleReadout();
   }
   resetRotation();
   const keys = new Set<string>(), listeners: Array<() => void> = [];
-  let width = 1, height = 1, zoom = 1, frame = 0, lastFrame = 0, clock = 0, frames = 0;
+  const defaultZoom = shape === 'swirl' ? 1.12 : 1;
+  let width = 1, height = 1, zoom = defaultZoom, frame = 0, lastFrame = 0, clock = 0, frames = 0;
   let disposed = false, paused = context.preferences.paused, reduced = context.preferences.reducedMotion;
   let flowDistance = 0, flowSpeed = studioState?.speed ?? 1, editing = false;
   let ambient = !reduced, dragging: number | null = null, previous: Vector3 | null = null;
@@ -113,7 +125,7 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   }
   function reset() {
     if (disposed) return;
-    clearInput(); resetRotation(); clock = 0; flowDistance = 0; setZoom(1); wake();
+    clearInput(); resetRotation(); clock = 0; flowDistance = 0; setZoom(defaultZoom); wake();
   }
   function toggleMotion() {
     ambient = !ambient; updateMotionButton();
@@ -146,6 +158,7 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
         (Number(keys.has('KeyQ')) - Number(keys.has('KeyE'))) * speed);
     }
     sculpture.quaternion.copy(rotation.orientation);
+    updateAngleReadout();
     materials.forEach(material => { material.uniforms.uTime.value = clock; material.uniforms.uFlowDistance.value = flowDistance; });
     renderer.render(scene, camera); frames++;
     if (import.meta.env.DEV) canvas.dataset.diagnostics = JSON.stringify({

@@ -23,9 +23,11 @@ export class SliceRenderer {
   private width = 1;
   private h = 1;
   private slowFrames = 0;
+  private readonly shadowSpread: number;
   renderMs = 0;
   constructor(readonly canvas: HTMLCanvasElement, kind: SliceKind, theme: ToyTheme) {
     this.height = kind === 'slab' ? 1.02 : 1.22;
+    this.shadowSpread = kind === 'prism' ? 1.22 : 1.45;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
     this.renderer.info.autoReset = false;
@@ -40,16 +42,16 @@ export class SliceRenderer {
     gradient.addColorStop(0, '#ffffffbb'); gradient.addColorStop(.55, '#ffffff55'); gradient.addColorStop(1, '#ffffff00');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, 128, 128);
     const shadowTexture = new THREE.CanvasTexture(shadowCanvas), shadowGeometry = new THREE.PlaneGeometry(1, 1);
-    const shadowMaterial = new THREE.MeshBasicMaterial({ map: shadowTexture, color: theme.foreground, transparent: true, opacity: .24, depthWrite: false, toneMapped: false });
+    const shadowMaterial = new THREE.MeshBasicMaterial({ map: shadowTexture, color: theme.foreground, transparent: true, opacity: kind === 'prism' ? .32 : .24, depthWrite: false, toneMapped: false });
     this.shadows = new THREE.InstancedMesh(shadowGeometry, shadowMaterial, MAX_PIECES); this.shadows.frustumCulled = false;
     this.shadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(this.shadows); this.resources.push(shadowTexture, shadowGeometry, shadowMaterial);
     this.scene.add(this.wire.mesh);
     const key = new THREE.DirectionalLight('#fff9ec', 2); key.position.set(-4, 6, 4);
     const fill = new THREE.DirectionalLight('#f2f9ff', .85); fill.position.set(4, 3, -3);
     this.scene.add(key, fill, new THREE.HemisphereLight('#fff8ed', '#b6a7a1', .5));
-    try { this.createEnvironment(); } catch (error) { this.dispose(); throw error; }
+    try { this.createEnvironment(kind === 'prism'); } catch (error) { this.dispose(); throw error; }
   }
-  private createEnvironment() {
+  private createEnvironment(mint: boolean) {
     const studio = new THREE.Scene(), generator = new THREE.PMREMGenerator(this.renderer);
     const room = new THREE.Mesh(new THREE.SphereGeometry(18, 20, 12), new THREE.MeshBasicMaterial({ color: '#34303b', side: THREE.BackSide })); studio.add(room);
     const textureCanvas = document.createElement('canvas'); textureCanvas.width = textureCanvas.height = 128;
@@ -59,7 +61,11 @@ export class SliceRenderer {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color('white').multiplyScalar(intensity), map: texture, transparent: true, side: THREE.DoubleSide }));
       mesh.position.set(x, y, z); mesh.lookAt(0, .4, 0); studio.add(mesh);
     };
-    panel(-5, 7, -3.5, 2.3, 4.2, 5); panel(-4, 4, 5, 2.2, 5, 6); panel(5, 2.5, 4, 1.6, 4, 4); panel(1, 7, 0, 4, 1, 2); panel(4, -4, 6, 5, 5, 3);
+    if (mint) {
+      panel(-4, 7, 3, 4, 5, 3.5); panel(4, 4, -3, 3, 4, 2.6); panel(0, 6, -5, 5, 2, 2.2);
+    } else {
+      panel(-5, 7, -3.5, 2.3, 4.2, 5); panel(-4, 4, 5, 2.2, 5, 6); panel(5, 2.5, 4, 1.6, 4, 4); panel(1, 7, 0, 4, 1, 2); panel(4, -4, 6, 5, 5, 3);
+    }
     try { this.environment = generator.fromScene(studio, .02); this.scene.environment = this.environment.texture; this.scene.environmentIntensity = .9; }
     finally { studio.traverse(object => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); } }); texture.dispose(); generator.dispose(); }
   }
@@ -77,7 +83,7 @@ export class SliceRenderer {
     model.pieces.forEach((piece, index) => {
       const origin = this.gel.origins[index], bounds = this.gel.bounds[index];
       this.shadowMatrix.position.set(origin.x + piece.offset.x, -.03 + index * .00001, origin.z + piece.offset.z);
-      this.shadowMatrix.rotation.set(-Math.PI / 2, 0, 0); this.shadowMatrix.scale.set((bounds.z - bounds.x) * 1.45 + .16, (bounds.w - bounds.y) * 1.45 + .16, 1);
+      this.shadowMatrix.rotation.set(-Math.PI / 2, 0, 0); this.shadowMatrix.scale.set((bounds.z - bounds.x) * this.shadowSpread + .16, (bounds.w - bounds.y) * this.shadowSpread + .16, 1);
       this.shadowMatrix.updateMatrix(); this.shadows.setMatrixAt(index, this.shadowMatrix.matrix);
     });
     this.shadows.instanceMatrix.needsUpdate = true;
