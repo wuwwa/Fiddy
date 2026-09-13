@@ -1,4 +1,5 @@
 export interface SoftBodyFeel {
+  kneading?: { followRate:number; speedLimit:number; workRate:number };
   plasticity?: { dwell:number; yield:number; rate:number; maxOffset:number; maxCompression:number };
   stiffness: number;
   damping: number;
@@ -25,7 +26,7 @@ export interface SoftBodyFeel {
   twistReturnDamping: number;
 }
 
-export type SoftToyShape = 'pebble' | 'cushion' | 'loop' | 'star' | 'dumpling' | 'putty';
+export type SoftToyShape = 'pebble' | 'cushion' | 'loop' | 'star' | 'dumpling' | 'putty' | 'dough';
 export type MaterialReaction = { kind:'solid' } | { kind:'pop'; threshold:number; relaxation:number; strainOnset:number };
 
 export interface SoftToyProfile {
@@ -162,4 +163,25 @@ export const puttyProfile: SoftToyProfile = {
     clearcoat:0.07, clearcoatRoughness:0.35,
   },
   rippleStrength:0.035, soundPitch:0.48, soundTexture:'putty',
+};
+
+export const doughProfile: SoftToyProfile = {
+  label:'kneading dough', shape:'dough', reaction:{kind:'solid'},
+  feel:{
+    ...puttyProfile.feel,
+    stiffness:21, damping:28, edgeCompliance:0.0018,
+    dragLimit:1.05, pressDragLimit:0.86, pullCompliance:0.000032, pullReleaseTime:1.2,
+    grabStrength:620, pressDepth:0.10, holdDepth:0.39, creepTime:1.8,
+    pressSpring:38, pressDamping:27, returnSpring:22, returnDamping:23,
+    tapKick:0.12, pokeKick:0.12, dentDepth:0.08, holdDentDepth:0.61,
+    twistSpring:30, twistDamping:24, twistReturnSpring:18, twistReturnDamping:22,
+    plasticity:{dwell:0.38,yield:0.065,rate:1.05,maxOffset:0.72,maxCompression:0.25},
+    kneading:{followRate:4.2,speedLimit:0.55,workRate:0.32},
+  },
+  material:{
+    color:0xffffff, roughness:0.7, transmission:0, thickness:1.4,
+    ior:1.4, absorption:0xe4e0d5, absorptionDistance:2,
+    clearcoat:0, clearcoatRoughness:0.8,
+  },
+  rippleStrength:0, soundPitch:0.42, soundTexture:'putty',
 };

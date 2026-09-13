@@ -56,10 +56,10 @@ export function App() {
   return <main className="toy" style={theme}>
     <header className="masthead">
       <button className="wordmark" onClick={() => setCollectionOpen(true)} aria-label="Open toy collection" aria-haspopup="dialog"><Icon /><span>{toy.name.toLowerCase()}<span className="wordmark-dot">.</span></span></button>
-      <button className="guide-trigger floating-surface" onClick={() => setGuideOpen(true)} aria-label={`How to play ${toy.name}`} aria-haspopup="dialog" aria-expanded={guideOpen}><HelpIcon /><span>How to play</span></button>
+      {toy.id !== 'dough' && <button className="guide-trigger floating-surface" onClick={() => setGuideOpen(true)} aria-label={`How to play ${toy.name}`} aria-haspopup="dialog" aria-expanded={guideOpen}><HelpIcon /><span>How to play</span></button>}
     </header>
     <ToyPlayer key={toy.id} toy={toy} paused={collectionOpen || guideOpen || hidden} reducedMotion={reducedMotion} sound={sound} onSoundChange={setSound} collectionOpen={collectionOpen} onOpenCollection={() => setCollectionOpen(true)} />
     <Collection open={collectionOpen} selected={toy} onClose={() => setCollectionOpen(false)} onSelect={selectToy} />
-    <PlayGuide open={guideOpen} toy={toy} onClose={() => setGuideOpen(false)} />
+    {toy.id !== 'dough' && <PlayGuide open={guideOpen} toy={toy} onClose={() => setGuideOpen(false)} />}
   </main>;
 }

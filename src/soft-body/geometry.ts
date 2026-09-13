@@ -4,6 +4,7 @@ import { FLOOR } from './physics';
 import type { SoftToyShape } from './profiles';
 
 export function createSoftGeometry(shape: SoftToyShape) {
+  if(shape==='dough') return createDough();
   if(shape==='loop') return createLoop();
   if(shape==='star' || shape==='dumpling') return createSculptedShape(shape);
   // Uniform triangles avoid pinched poles. A smooth implicit superellipsoid
@@ -27,6 +28,27 @@ export function createSoftGeometry(shape: SoftToyShape) {
       FLOOR+y,x*Math.sin(angle)+z*Math.cos(angle));
   }
   return finishSurface(surface);
+}
+
+function createDough() {
+  const surface=new THREE.IcosahedronGeometry(1,31);
+  const position=surface.getAttribute('position');
+  for(let i=0;i<position.count;i++) {
+    const nx=position.getX(i),ny=position.getY(i),nz=position.getZ(i);
+    const radius=(Math.abs(nx)**2.15+Math.abs(ny)**2.15+Math.abs(nz)**2.15)**(-1/2.15);
+    const fullness=1+0.075*Math.sin(nx*4+nz*3)*Math.cos(ny*2)+0.035*Math.cos(nz*6-nx*3);
+    const x=nx*radius*1.2*fullness,z=nz*radius*1.04*fullness;
+    const top=THREE.MathUtils.smoothstep(ny,-0.1,0.6);
+    // A thick, uneven flap and palm dents give the mound a worked shape.
+    const seam=z+0.02-0.17*Math.sin(x*3+0.7);
+    const flap=(0.14*Math.exp(-(((seam+0.2)/0.19)**2))-0.13*Math.exp(-((seam/0.12)**2)))
+      *Math.exp(-((x/0.99)**6));
+    const palm=0.1*Math.exp(-(((x+0.43)/0.3)**2+((z-0.34)/0.36)**2));
+    const gather=0.055*Math.sin(x*12+z*4)*Math.exp(-(((x-0.67)/0.31)**2+((z+0.15)/0.65)**2));
+    const y=ny*radius*0.6+(flap-palm+gather)*top;
+    position.setXYZ(i,x+ny*0.085,y,z+0.055*(nx*nx-0.3));
+  }
+  return restOnFloor(surface);
 }
 
 function finishSurface(surface:THREE.BufferGeometry) {

@@ -3,6 +3,7 @@
 import { jellyProfile, type SoftBodyFeel } from './profiles';
 import { pressureFrame, undoDeformation, twistWeight } from './pressure';
 import { PlasticMould } from './plasticity';
+import { KneadingMemory } from './kneading';
 export const FLOOR = 0.04;
 const CELLS = 4;
 const SIDE = CELLS + 1;
@@ -20,7 +21,7 @@ export type Binding = { ids: number[]; weights: number[] };
 type Grab = { weights: Float64Array; target: Point; rawTarget:Point; consumedTarget:Point; filtered: Point;
   anchor: Point; localAnchor: Point; restAnchor:Point; normal: Point; verticalLoad: number; manualTwist:number;
   contact:Binding; contactStart:Point; contactRest:Point; contactLambda:Float64Array; start:Float64Array;
-  age:number; pressure:number; dentDepth:number; pulling:number };
+  age:number; pressure:number; dentDepth:number; pulling:number; folding:number };
 const index = (x: number, y: number, z: number) => (y * SIDE + z) * SIDE + x;
 
 export class SoftBodyPhysics {
@@ -40,6 +41,7 @@ export class SoftBodyPhysics {
   private contactForces = new Float64Array(COUNT * 3);
   private contactWeights = new Float64Array(COUNT);
   private plastic:PlasticMould|null=null;
+  readonly kneading:KneadingMemory|null;
   reducedMotion = false;
   private compression = 0;
   private previousCompression = 0;
@@ -122,6 +124,7 @@ export class SoftBodyPhysics {
   toMaterialPoint(point:Point) { return undoDeformation(point,this.compression,this.twist); }
 
   constructor(readonly feel: SoftBodyFeel = jellyProfile.feel) {
+    this.kneading=feel.kneading?new KneadingMemory(COUNT,feel.kneading.workRate):null;
     for (let y = 0; y < SIDE; y++) for (let z = 0; z < SIDE; z++) for (let x = 0; x < SIDE; x++) {
       const i = index(x, y, z);
       this.rest.set([MIN[0] + x / CELLS * SIZE[0], MIN[1] + y / CELLS * SIZE[1], MIN[2] + z / CELLS * SIZE[2]], i * 3);
@@ -241,7 +244,7 @@ export class SoftBodyPhysics {
     const grab:Grab={ weights, target: { x: 0, y: 0, z: 0 }, rawTarget:{x:0,y:0,z:0}, consumedTarget:{x:0,y:0,z:0}, filtered: { x: 0, y: 0, z: 0 },
       anchor:{...point}, localAnchor:local, restAnchor:restPoint, normal, verticalLoad, manualTwist:0,
       contact,contactStart,contactRest,contactLambda:new Float64Array(3),
-      start:new Float64Array(this.positions), age:0, pressure:1, dentDepth:0, pulling:0 };
+      start:new Float64Array(this.positions), age:0, pressure:1, dentDepth:0, pulling:0, folding:0 };
     this.grabs.set(id,grab);this.strainContacts.push(grab);
     // Keep the existing rebound velocity when caught again; reversing it
     // immediately was a visible snap during rapid play.
@@ -261,13 +264,19 @@ export class SoftBodyPhysics {
     if(g) g.manualTwist=Math.max(-0.8,Math.min(0.8,amount));
   }
 
+  setFold(amount:number,id=0) {
+    const g=this.grabs.get(id);
+    if(!g || !this.feel.kneading || !Number.isFinite(amount))return;
+    g.folding=Math.max(0,Math.min(1,amount));
+  }
+
   moveGrab(offset: Point, id=0) {
     const g=this.grabs.get(id);
     if (!g || !Number.isFinite(offset.x) || !Number.isFinite(offset.y) || !Number.isFinite(offset.z)) return;
     const length = Math.hypot(offset.x, offset.y, offset.z);
     // Resistance increases continuously toward the limit instead of hitting
     // a hard stop when a pointer crosses one exact radius.
-    const limit=this.feel.pressDragLimit+(this.feel.dragLimit-this.feel.pressDragLimit)*(1-Math.min(1,g.pressure));
+    const limit=this.feel.pressDragLimit+(this.feel.dragLimit-this.feel.pressDragLimit)*(1-Math.min(1,g.pressure))+0.4*g.folding;
     const scale = limit*Math.tanh(length/limit)/Math.max(length,0.0001);
     g.rawTarget.x=offset.x;g.rawTarget.y=offset.y;g.rawTarget.z=offset.z;
     g.target.x=offset.x*scale;g.target.y=offset.y*scale;g.target.z=offset.z*scale;
@@ -279,7 +288,7 @@ export class SoftBodyPhysics {
   release(id=0, preserveMovement=true) {
     const grab=this.grabs.get(id);
     if(!grab) return;
-    if(preserveMovement) this.finishMovement(grab,id);
+    if(preserveMovement && !this.feel.kneading) this.finishMovement(grab,id);
     for(let i=0;i<this.strainContacts.length;i++) if(this.strainContacts[i]===grab) {this.strainContacts.splice(i,1);break;}
     this.grabs.delete(id);
     this.dentDepth=0;
@@ -343,6 +352,7 @@ export class SoftBodyPhysics {
   releaseAll() { this.grabs.clear(); this.strainContacts.length=0;this.dentDepth=0; }
 
   reset() {
+    this.kneading?.reset();
     if(this.plastic) {
       this.plastic.reset();
       for(const edge of this.edges) {
@@ -444,11 +454,19 @@ export class SoftBodyPhysics {
     const p = this.positions, v = this.velocities;
     this.previous.set(p);
     for(const g of this.grabs.values()) {
-      const follow=1-Math.exp(-dt*38);
+      const follow=1-Math.exp(-dt*(this.feel.kneading?(this.feel.kneading.followRate+7.8*g.folding):38));
       // Keep the touched patch under the pointer as the rest of the body
       // expands around it. Pressing down still lets the surface sink.
       const offset=this.grabOffset(g,g.target);
-      for(const k of ['x','y','z'] as const) g.filtered[k]+=(offset[k]-g.filtered[k])*follow;
+      let resisted=follow;
+      if(this.feel.kneading) {
+        // Bound material speed, not pointer speed: a quick yank loads the dough,
+        // while a long, deliberate stroke has time to push the fold through.
+        const distance=Math.hypot(offset.x-g.filtered.x,offset.y-g.filtered.y,offset.z-g.filtered.z);
+        const limit=(this.feel.kneading.speedLimit+1.1*g.folding)*dt;
+        resisted=limit*Math.tanh(distance*follow/limit)/Math.max(distance,1e-8);
+      }
+      for(const k of ['x','y','z'] as const) g.filtered[k]+=(offset[k]-g.filtered[k])*resisted;
     }
     // Restore edge resistance gradually after a pull. An immediate switch back
     // to the resting stiffness released all the stored strain in one frame.
@@ -517,7 +535,7 @@ export class SoftBodyPhysics {
         const g=contacts[iteration%2?n:contacts.length-1-n];
         if(g.pulling<=0.00001) continue;
         const {ids,weights}=g.contact;
-        const pullAlpha=this.feel.pullCompliance*(1+Math.max(0,contacts.length-2))/(dt*dt*g.pulling);
+        const pullAlpha=this.feel.pullCompliance*(1+Math.max(0,contacts.length-2))/(dt*dt*g.pulling*(1+2*g.folding));
         let x=0,y=0,z=0,denominator=pullAlpha;
         for(let b=0;b<ids.length;b++) {
           const j=ids[b]*3,w=weights[b];
@@ -525,7 +543,7 @@ export class SoftBodyPhysics {
           denominator+=this.invMass[ids[b]]*w*w;
         }
         const tx=g.contactStart.x+g.filtered.x-g.contactRest.x,ty=g.contactStart.y+g.filtered.y-g.contactRest.y,tz=g.contactStart.z+g.filtered.z-g.contactRest.z;
-        const bounded=Math.min(1,this.feel.dragLimit/Math.max(0.0001,Math.hypot(tx,ty,tz)));
+        const bounded=Math.min(1,(this.feel.dragLimit+0.4*g.folding)/Math.max(0.0001,Math.hypot(tx,ty,tz)));
         const dx=(-(x-g.contactRest.x-tx*bounded)-pullAlpha*g.contactLambda[0])/denominator;
         const dy=(-(y-g.contactRest.y-ty*bounded)-pullAlpha*g.contactLambda[1])/denominator;
         const dz=(-(z-g.contactRest.z-tz*bounded)-pullAlpha*g.contactLambda[2])/denominator;
@@ -559,6 +577,8 @@ export class SoftBodyPhysics {
       if (!Number.isFinite(p[j]) || Math.abs(p[j]-this.rest[j])>3) { this.reset(); return; }
       v[j]=(p[j]-this.previous[j])/dt;
     }
+    this.kneading?.step(p,this.previous,this.contactWeights,
+      this.compression-this.previousCompression,this.twist-this.previousTwist,dt);
     if(this.plastic?.learn(p,this.contactWeights,this.compression,verticalPressure,dt)) {
       const mould=this.plastic.positions;
       for(const edge of this.edges) {
@@ -591,6 +611,7 @@ export class SoftBodyPhysics {
       twist:this.twist,twistSpeed:this.twistVelocity,dentDepth:this.dentDepth,
       volumeRatio: total/initial, minVolumeRatio, grabbed: this.grabs.size>0, contactCount:this.grabs.size, particles: COUNT,
       flickCount:this.flickCount,lastFlick:this.lastFlick,meanOffset,meanVelocity,
+      ...(this.kneading?{kneading:this.kneading.diagnostics()}: {}),
       ...(this.plastic?{plastic:this.plastic.diagnostics()}: {}) };
   }
 }

@@ -1,6 +1,7 @@
 import { jelly } from './jelly';
 import { cushion } from './cushion';
 import { putty } from './putty';
+import { dough } from './dough';
 import { loop } from './loop';
 import { star } from './star';
 import { dumpling } from './dumpling';
@@ -13,7 +14,7 @@ import { jellySlice, jellyPrism } from './slicing';
 import type { ToyDefinition } from './types';
 
 /** Display order is collection order. Register finished, playable toys here. */
-export const toys: readonly ToyDefinition[] = [jelly, cushion, putty, loop, star, dumpling, asciiTide, liquidLight, astraSwirl, astraCursor, magneticDust, silk, jellySlice, jellyPrism];
+export const toys: readonly ToyDefinition[] = [jelly, cushion, putty, dough, loop, star, dumpling, asciiTide, liquidLight, astraSwirl, astraCursor, magneticDust, silk, jellySlice, jellyPrism];
 export const defaultToy = jelly;
 
 export function findToy(id: string | null): ToyDefinition {

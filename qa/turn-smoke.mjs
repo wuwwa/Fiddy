@@ -7,7 +7,8 @@ import { resolve, join } from 'node:path';
 const backend=process.argv.includes('--webgl')?'webgl':'webgpu';
 const interruptionsOnly=process.argv.includes('--interruptions-only');
 const puttyOnly=process.argv.includes('--putty');
-const reportName=`${puttyOnly?'putty':'turn'}-${backend}${interruptionsOnly?'-interruptions':''}-results.json`;
+const doughOnly=process.argv.includes('--dough');
+const reportName=`${doughOnly?'dough':puttyOnly?'putty':'turn'}-${backend}${interruptionsOnly?'-interruptions':''}-results.json`;
 const origin=process.env.QA_ORIGIN ?? 'http://127.0.0.1:5174';
 const artifacts=resolve('qa/artifacts');await mkdir(artifacts,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'codex-jelly-turn-'));
@@ -115,7 +116,11 @@ try {
     const {runPuttyChecks}=await import('./putty-checks.mjs');
     await runPuttyChecks({load,reset,click,send,evaluate,diagnostics,waitFor,delay,touch,viewport,screenshot,record});
   }
-  if(interruptionsOnly && !puttyOnly) {
+  if(doughOnly) {
+    const {runDoughChecks}=await import('./dough-checks.mjs');
+    await runDoughChecks({load,reset,click,send,evaluate,diagnostics,waitFor,delay,touch,viewport,screenshot,record});
+  }
+  if(interruptionsOnly && !puttyOnly && !doughOnly) {
     const neutral=await load('cushion');
     for(const mode of ['cancel','blur','reduced']) {
       await reset();
@@ -132,7 +137,7 @@ try {
     await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
     await reset();
   }
-  for(const toy of interruptionsOnly || puttyOnly?[]:['cushion','jelly','loop']) {
+  for(const toy of interruptionsOnly || puttyOnly || doughOnly?[]:['cushion','jelly','loop']) {
     const neutral=await load(toy);await reset();
     await screenshot(`${toy}-rest`);
     for(const gesture of ['pinch','translation']) {
