@@ -1,0 +1,14 @@
+.toy-player[data-toy-id='silk'] .field-canvas{cursor:grab}
+.toy-player[data-toy-id='silk'] .field-canvas.silk-held{cursor:grabbing}
+.toy-player[data-toy-id='silk'] .interaction-dock{padding:16px 20px 8px;border-radius:25px;background:linear-gradient(transparent,#191a18dd)}
+.toy-player[data-toy-id='silk'] .instructions{font-size:14px}
+.toy-player[data-toy-id='silk'] .keyboard-hint{font-size:12px}
+.silk-palette{position:absolute;left:36px;bottom:36px;display:flex;gap:4px;padding:5px;border:1px solid #d4c4ad20;border-radius:24px;background:#20221ed9;backdrop-filter:blur(16px);z-index:2}
+.silk-palette button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:20px;background:transparent;color:#aca699;font:inherit;font-size:12px;cursor:pointer;transition:background .18s,color .18s,border-color .18s}
+.silk-palette button span{width:11px;height:11px;flex:none;border-radius:50%;background:var(--fabric-color);box-shadow:inset 0 0 0 1px #ffffff28}
+.silk-palette button[aria-pressed='true']{background:#d4c4ad13;border-color:#d4c4ad35;color:#eae4da}
+.silk-palette button:hover{background:#d4c4ad1c;color:#eae4da}
+.silk-palette button:focus-visible{outline:2px solid #d4c4ad;outline-offset:3px}
+@media(max-width:900px){.silk-palette{left:50%;bottom:auto;top:88px;transform:translateX(-50%)}}
+@media(max-width:600px){.toy-player[data-toy-id='silk'] .instructions{font-size:13px}.silk-palette{top:83px}.silk-palette button{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.silk-palette button{transition:none}}

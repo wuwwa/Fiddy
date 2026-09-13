@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.local/
+qa/artifacts/
+.env
+.env.*
+!.env.example
+*.pem
+*.key

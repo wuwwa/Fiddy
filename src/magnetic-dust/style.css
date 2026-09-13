@@ -1,0 +1,19 @@
+.magnet-polarity{position:absolute;top:94px;left:50%;transform:translateX(-50%);display:flex;gap:22px;padding:0 12px;border-bottom:1px solid #39403426}
+.magnet-polarity button{min-width:66px;min-height:44px;padding:0 4px;border:0;border-bottom:1px solid transparent;margin-bottom:-1px;background:transparent;color:#77786d;font-size:12px;letter-spacing:.03em;transition:color .16s,border-color .16s}
+.magnet-polarity button[aria-pressed=true]{border-bottom-color:#343c31;color:#30362c}
+.magnet-polarity button:not(:disabled):hover{color:#30362c}
+.magnet-polarity button:focus-visible{outline:2px solid #59644e;outline-offset:4px}
+.toy-player[data-toy-id='magnetic-dust'] .field-canvas{cursor:none}
+.toy-player[data-toy-id='magnetic-dust'] .interaction-dock{padding:12px 16px 6px;max-width:calc(100% - 24px);background:none}
+.toy-player[data-toy-id='magnetic-dust'] .instructions{font-size:12px;line-height:1.7;white-space:normal;justify-content:center;text-align:center;margin-bottom:12px;color:#555c50}
+.toy-player[data-toy-id='magnetic-dust'] .control-pill{background:transparent;border-color:#39403430;backdrop-filter:none;padding:0}
+.toy-player[data-toy-id='magnetic-dust'] .control-pill button{min-height:40px;padding:0 18px;font-size:12px}
+.toy-player[data-toy-id='magnetic-dust'] .keyboard-hint{font-size:10px;color:#707469}
+.toy-player[data-toy-id='magnetic-dust'] .keyboard-hint kbd{background:transparent}
+.toy-player[data-toy-id='magnetic-dust'] .field-keyboard-cursor{border-color:#485340;box-shadow:none;width:20px;height:20px}
+.toy-player[data-toy-id='magnetic-dust'] .field-keyboard-cursor::after{inset:8px;background:#485340}
+.toy-player[data-toy-id='magnetic-dust'] .field-keyboard-cursor.is-active{width:28px;height:28px;border-style:solid}
+.toy-player[data-toy-id='magnetic-dust'] .field-keyboard-cursor.is-active::after{inset:12px}
+@media(max-width:600px){.magnet-polarity{top:86px}.toy-player[data-toy-id='magnetic-dust'] .interaction-dock{padding-inline:10px;width:calc(100% - 24px)}}
+@media(max-height:650px){.magnet-polarity{top:70px}}
+@media(prefers-reduced-motion:reduce){.magnet-polarity button{transition:none}}

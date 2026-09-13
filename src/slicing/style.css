@@ -1,0 +1,9 @@
+.slice-canvas{cursor:grab}
+.is-playing .slice-canvas{cursor:grabbing}
+.slice-angle{position:absolute;top:max(24px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:3px;border-radius:28px;color:var(--toy-muted);font-size:11px;letter-spacing:.01em}
+.slice-angle button{display:grid;place-items:center;border:0;border-radius:50%;background:transparent;width:44px;height:44px;font-size:21px;font-weight:400;line-height:1;color:var(--toy-accent);transition:background .18s,transform .15s}
+.slice-angle button:not(:disabled):hover{background:var(--toy-background)}
+.slice-angle button:not(:disabled):active{transform:scale(.92)}
+.slice-angle span{min-width:80px;text-align:center}
+@media(max-width:700px){.slice-angle{top:calc(max(16px,env(safe-area-inset-top)) + 62px)}.toy:has(.slice-canvas) .wordmark{font-size:23px;gap:6px}.toy:has(.slice-canvas) .masthead{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}}
+@media(max-height:450px){.slice-angle{top:max(12px,env(safe-area-inset-top));left:auto;right:max(20px,env(safe-area-inset-right));transform:none}}

@@ -1,0 +1,10 @@
+.field-canvas{cursor:crosshair}
+.field-canvas:focus-visible{outline:1px solid var(--toy-accent);outline-offset:-8px;border-radius:0}
+.field-keyboard-cursor{position:absolute;z-index:1;width:30px;height:30px;transform:translate(-50%,-50%);border:1px solid #d8fff4;border-radius:50%;box-shadow:0 0 15px #55e5c44d;pointer-events:none}
+.field-keyboard-cursor::after{content:'';position:absolute;inset:12px;border-radius:50%;background:#fff}
+.field-keyboard-cursor.is-active{width:44px;height:44px;border-style:dashed}
+.field-keyboard-cursor.is-active::after{inset:19px}
+.toy-player:is([data-toy-id='ascii-tide'],[data-toy-id='liquid-light']) .interaction-dock{max-width:calc(100% - 32px);padding:18px 24px 12px;border-radius:24px;background:linear-gradient(transparent,#050c179c);white-space:normal;text-align:center}
+.toy-player:is([data-toy-id='ascii-tide'],[data-toy-id='liquid-light']) .instructions{font-size:14px;justify-content:center;flex-wrap:wrap;line-height:1.6}
+.toy-player:is([data-toy-id='ascii-tide'],[data-toy-id='liquid-light']) .keyboard-hint{font-size:12px;line-height:1.8;white-space:nowrap}
+@media(max-width:600px){.toy-player:is([data-toy-id='ascii-tide'],[data-toy-id='liquid-light']) .interaction-dock{padding:14px 10px 8px;width:calc(100% - 24px)}.toy-player:is([data-toy-id='ascii-tide'],[data-toy-id='liquid-light']) .instructions{font-size:13px}}

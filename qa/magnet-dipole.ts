@@ -1,0 +1,10 @@
+import { mount } from '../src/magnetic-dust/entry';
+import { magneticDust } from '../src/toys/magnetic-dust';
+const host = document.querySelector<HTMLElement>('#surface')!, status = document.querySelector<HTMLElement>('#status')!, abort = new AbortController();
+const controller = (await mount(host, { signal: abort.signal, theme: magneticDust.theme, preferences: { paused: false, reducedMotion: false, sound: false }, onError: error => { status.textContent = error; }, onInteractionChange: active => { status.textContent = active ? 'Magnet active' : 'Relaxing'; } }))!;
+const canvas = host.querySelector('canvas')!;
+status.textContent = 'Loose filings';
+document.querySelector('#hold')!.addEventListener('click', () => { canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true, cancelable: true })); });
+document.querySelector('#release')!.addEventListener('click', () => { canvas.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true })); });
+document.querySelector('#reset')!.addEventListener('click', () => { controller.reset(); status.textContent = 'Loose filings'; });
+window.addEventListener('pagehide', () => { abort.abort(); controller.dispose(); }, { once: true });
