@@ -1,4 +1,5 @@
 import type { ToyDefinition } from './types';
+import { softBodyControls } from './soft-body-copy';
 
 function PuttyIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -15,7 +16,7 @@ export const putty:ToyDefinition={
   copy:{
     loading:'Loading putty',instructions:['Hold to knead','Pull a fold'],
     touchInstructions:['Hold to knead','Pinch & pull'],
-    keyboardHint:<>Hold <kbd>space</kbd> <span>·</span> arrows to stretch <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to twist</>,
+    ...softBodyControls,
   },
   load:()=>import('../putty/entry'),
 };

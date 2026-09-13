@@ -9,8 +9,8 @@ function PrismIcon() {
 const copy: ToyDefinition['copy'] = {
   loading: 'Setting out the jelly',
   desktopInstructionsOnly: true,
-  instructions: ['Hold to cut', 'Drag down for more tension'],
-  touchInstructions: ['Hold to cut', 'Slide down for more tension'],
+  instructions: ['Swipe across to cut', 'Hold, then drag down for tension'],
+  touchInstructions: ['Swipe across to cut', 'Hold, then slide down for tension'],
   keyboardHint: <>Arrows to aim <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to angle <span>·</span> hold <kbd>space</kbd> to cut</>,
 };
 export const jellySlice: ToyDefinition = {

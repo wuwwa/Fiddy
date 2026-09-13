@@ -48,6 +48,7 @@ export interface ToyDefinition {
     instructions: readonly string[];
     touchInstructions?: readonly string[];
     desktopInstructionsOnly?: boolean;
+    rotationHint?: string;
     keyboardHint: ReactNode;
   };
   load(): Promise<ToyModule>;

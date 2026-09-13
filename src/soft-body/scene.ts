@@ -326,28 +326,45 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       if(released && pointers.has(event.pointerId)) move(event);
       endPointer(event.pointerId,released);
     };
+    const beginKeyboard=()=>{
+      if(keyboard || pointers.size>0 || rotationPointers.size || rotationKeys.size)return false;
+      rotation.stop();updatePose();
+      canvas.classList.remove('is-pointer-focused');
+      keyboard=true;keyboardOffset.set(0,0,0);keyboardTwist=0;keyboardStrength=0.5;keyboardStartedAt=performance.now();
+      // Pick actual skin, even on hollow or lobed shapes and stretched tips.
+      let top=0;
+      for(let i=1;i<position.count;i++)if(position.getY(i)>position.getY(top))top=i;
+      localAnchor.fromBufferAttribute(position,top);
+      keyboardNormal.fromBufferAttribute(geometry.getAttribute('normal'),top).normalize();
+      keyboardRippleOrigin.copy(physics.toMaterialPoint(localAnchor));
+      if(!physics.beginGrab(localAnchor,keyboardNormal,KEYBOARD_CONTACT)){
+        keyboard=false;syncInteraction();return false;
+      }
+      interactionCount++;
+      physics.impulse(localAnchor,keyboardNormal.clone().negate(),profile.feel.pokeKick);
+      if(!physics.reducedMotion)ripples.add(keyboardRippleOrigin,profile.rippleStrength);
+      syncInteraction();audio.play('press');requestFrame();return true;
+    };
+    const keyboardTargetIsInteractive=(event:KeyboardEvent)=>{
+      const target=event.target;
+      if(!(target instanceof HTMLElement) || target===canvas)return false;
+      if(target.isContentEditable || target.matches('input,textarea,select') || !!target.closest('[role="dialog"]'))return true;
+      return (event.code==='Space' || event.code.startsWith('Arrow')) && !!target.closest('button,a');
+    };
     const keyDown=(event:KeyboardEvent)=>{
-      if(paused || response.bursting) return;
+      if(paused || response.bursting || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || keyboardTargetIsInteractive(event))return;
       if(event.code==='Space') {
         event.preventDefault();
-        if(event.repeat || keyboard || pointers.size>0 || rotationPointers.size || rotationKeys.size) return;
-        rotation.stop();updatePose();
-        canvas.classList.remove('is-pointer-focused');
-        keyboard=true; keyboardOffset.set(0,0,0);keyboardTwist=0;keyboardStrength=0.5;keyboardStartedAt=performance.now();
-        // Pick actual skin, even on hollow or lobed shapes and stretched tips.
-        let top=0;
-        for(let i=1;i<position.count;i++) if(position.getY(i)>position.getY(top)) top=i;
-        localAnchor.fromBufferAttribute(position,top);
-        keyboardNormal.fromBufferAttribute(geometry.getAttribute('normal'),top).normalize();
-        keyboardRippleOrigin.copy(physics.toMaterialPoint(localAnchor));
-        if(!physics.beginGrab(localAnchor,keyboardNormal,KEYBOARD_CONTACT)) {
-          keyboard=false;syncInteraction();return;
+        if(!keyboard && (event.repeat || !beginKeyboard()))return;
+        keys.add('Space');requestFrame();
+      } else if(event.code==='KeyQ' || event.code==='KeyE') {
+        event.preventDefault();
+        if(!keyboard && !beginKeyboard())return;
+        if(!event.repeat && !keys.has(event.code)){
+          keyboardTwist=THREE.MathUtils.clamp(keyboardTwist+(event.code==='KeyE'?.12:-.12),-.8,.8);
+          physics.setTwist(keyboardTwist,KEYBOARD_CONTACT);
         }
-        interactionCount++;
-        physics.impulse(localAnchor,keyboardNormal.clone().negate(),profile.feel.pokeKick);
-        if(!physics.reducedMotion)ripples.add(keyboardRippleOrigin,profile.rippleStrength);
-        syncInteraction();audio.play('press');
-        requestFrame();
+        keys.add(event.code);requestFrame();
       } else if(keyboard && (event.code.startsWith('Arrow') || event.code==='KeyQ' || event.code==='KeyE')) {
         event.preventDefault(); keys.add(event.code);
       } else if(!keyboard && (event.code==='ArrowLeft' || event.code==='ArrowRight')) {
@@ -360,8 +377,9 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       }
     };
     const keyUp=(event:KeyboardEvent)=>{
-      if(event.code==='Space' && keyboard) {event.preventDefault();endKeyboard();}
+      if(keyboard && ['Space','KeyQ','KeyE','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.code))event.preventDefault();
       keys.delete(event.code);
+      if(keyboard && !keys.has('Space') && !keys.has('KeyQ') && !keys.has('KeyE'))endKeyboard();
       if(rotationKeys.delete(event.code)) {syncInteraction();requestFrame();}
     };
     const leave=()=>{canvas.classList.remove('is-hovering');};
@@ -377,7 +395,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
     listen(canvas,'pointercancel',up as EventListener);
     listen(canvas,'lostpointercapture',up as EventListener);
     listen(canvas,'pointerleave',leave);
-    listen(canvas,'keydown',keyDown as EventListener);
+    listen(window,'keydown',keyDown as EventListener);
     listen(window,'keyup',keyUp as EventListener);
     listen(window,'blur',cancelGrab);
     listen(canvas,'blur',cancelGrab);
@@ -440,7 +458,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
         keyboardDirection.applyQuaternion(camera.quaternion).multiplyScalar(elapsed*1.1);
         localDragDelta(keyboardDirection,keyboardOrigin,inverseDragMatrix.copy(jelly.matrixWorld).invert(),keyboardDirection);
         keyboardOffset.add(keyboardDirection).clampLength(0,profile.feel.dragLimit*2);
-        keyboardTwist=THREE.MathUtils.clamp(keyboardTwist+((keys.has('KeyE')?1:0)-(keys.has('KeyQ')?1:0))*elapsed,-0.8,0.8);
+        keyboardTwist=THREE.MathUtils.clamp(keyboardTwist+((keys.has('KeyE')?1:0)-(keys.has('KeyQ')?1:0))*elapsed*1.45,-0.8,0.8);
         physics.setPressure(dragPressure(keyboardOffset,keyboardNormal),KEYBOARD_CONTACT);
         physics.moveGrab(keyboardOffset,KEYBOARD_CONTACT);
         physics.setTwist(keyboardTwist,KEYBOARD_CONTACT);

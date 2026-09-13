@@ -151,6 +151,7 @@ try {
     await screenshot(`${toy}-pressed`);points=await rotate(points);
     const turning=await waitFor(data=>data.state.pairTurn.contacts.length===2 && data.state.pairTurn.contacts.every(c=>c.relief>0.95),'Gentle turn did not ease pressure');
     assert.equal(turning.state.contactCount,2);assert.ok(turning.state.surface.positionVersion>pressed.surface.positionVersion);
+    assert.equal(turning.state.rotation.angle,0,'Wringing the material must not rotate the whole shape');
     assert.ok(turning.state.surface.normalSample.some((n,i)=>Math.abs(n-pressed.surface.normalSample[i])>0.0001));
     assert.ok(turning.state.minVolumeRatio>0.75);assert.equal(turning.state.reaction.pops,0);
     record(`${toy} turn`,{state:turning.state,screenshot:await screenshot(`${toy}-turned`)});

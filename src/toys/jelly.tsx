@@ -1,4 +1,5 @@
 import type { ToyDefinition } from './types';
+import { softBodyControls } from './soft-body-copy';
 
 function JellyIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -21,7 +22,7 @@ export const jelly: ToyDefinition = {
     desktopInstructionsOnly: true,
     instructions: ['Hold to press in', 'Drag to stretch & twist'],
     touchInstructions: ['Press & hold', 'Pinch & stretch'],
-    keyboardHint: <>Hold <kbd>space</kbd> <span>·</span> arrows to stretch <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to twist</>,
+    ...softBodyControls,
   },
   load: () => import('../jelly/entry'),
 };

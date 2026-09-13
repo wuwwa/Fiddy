@@ -106,8 +106,15 @@ export class SliceModel {
     return { id: this.nextId++, polygon, offset: { ...offset }, target: { ...offset }, velocity: { x: 0, z: 0 }, age: 0, bornStroke };
   }
   beginStroke() { this.stroke++; }
+  contains(point: Point) {
+    if (!valid(point)) return false;
+    return this.pieces.some(piece => {
+      const local = sub(point, piece.offset), span = chord(piece.polygon, local, { x: local.x + 1, z: local.z });
+      return span && span[0] <= 0 && span[1] >= 0;
+    });
+  }
   slice(start: Point, end: Point, reduced = false) {
-    if (!valid(start) || !valid(end)) return 0;
+    if (this.pieces.length >= MAX_PIECES || !valid(start) || !valid(end)) return 0;
     let count = 0;
     const dx = end.x - start.x, dz = end.z - start.z, length = Math.hypot(dx, dz);
     if (length < .16) return 0;

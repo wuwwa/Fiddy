@@ -41,6 +41,46 @@ test('the default knife incision projects vertically on desktop and phone camera
   }
 });
 
+test('wire tension stays loaded while held, responds smoothly to a pull, and resets after cancellation', () => {
+  const line = findCut(new SliceModel('slab'), { x: 0, z: 0 }, 0)!;
+  for (const fps of [30, 60, 120]) {
+    const press = new KnifePress(); press.begin(line);
+    for (let i = 0; i < fps / 2; i++) press.step(1 / fps);
+    assert.equal(press.tension, .6, 'Holding still keeps the cord pre-tensioned');
+    press.setPressure(1); press.step(1 / fps);
+    assert.ok(press.tension > .6 && press.tension < .9, 'A pull loads the cord without snapping to maximum');
+    for (let i = 0; i < fps / 2; i++) press.step(1 / fps);
+    assert.ok(press.tension > .998);
+    for (let i = 0; i < fps / 2; i++) press.step(1 / fps);
+    assert.ok(press.tension > .998, 'A stationary pull retains its tension');
+    press.setPressure(.05);
+    for (let i = 0; i < fps / 2; i++) press.step(1 / fps);
+    assert.ok(press.tension >= .24 && press.tension < .25, 'Easing back keeps some tension');
+    press.release(true); assert.equal(press.tension, .6); assert.equal(press.pressure, .5);
+  }
+});
+
+test('pulling the cutting cord taut reduces its bow without shifting the incision or stretching its length', () => {
+  const wire = new CuttingWire(), press = new KnifePress();
+  const line = findCut(new SliceModel('slab'), { x: 0, z: 0 }, 0)!;
+  const positions = wire.geometry.attributes.position;
+  const center = (ring: number) => new Vector3().fromBufferAttribute(positions, ring * 9)
+    .add(new Vector3().fromBufferAttribute(positions, ring * 9 + 4)).multiplyScalar(.5);
+  try {
+    press.begin(line); press.depth = .5; press.resistance = 1;
+    const bows: number[] = [];
+    for (const tension of [.24, .6, 1]) {
+      press.tension = tension; wire.update(line, press, 1.02, 10.7);
+      bows.push(center(32).y - center(0).y);
+      let length = 0;
+      for (let i = 1; i <= 64; i++) length += center(i).distanceTo(center(i - 1));
+      assert.ok(Math.abs(length - Math.min(6, line.width + 1.25)) < .005, 'The cord retains its material length');
+      assert.ok(Math.abs(center(32).y + wire.mesh.position.y - (1.02 + .21 - .5 * (1.02 + .235))) < 1e-6, 'Tension does not jump the cutting center');
+    }
+    assert.ok(bows[0] > bows[1] && bows[1] > bows[2] && bows[2] > 0, 'Even a taut cord reacts to gel resistance');
+  } finally { wire.dispose(); }
+});
+
 function complete(fps: number, pressure: number) {
   const knife = new KnifePress(), model = new SliceModel('slab'); knife.begin(findCut(model, { x: 0, z: 0 }, -.6)!); knife.setPressure(pressure);
   let time = 0, completions = 0;

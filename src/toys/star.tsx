@@ -1,4 +1,5 @@
 import type { ToyDefinition } from './types';
+import { softBodyControls } from './soft-body-copy';
 
 function StarIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -19,7 +20,7 @@ export const star: ToyDefinition = {
     loading: 'Loading star',
     instructions: ['Hold to press in', 'Drag the tips to stretch'],
     touchInstructions: ['Hold to press', 'Two fingers to pinch & stretch'],
-    keyboardHint: <>Hold <kbd>space</kbd> <span>·</span> arrows to stretch <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to twist</>,
+    ...softBodyControls,
   },
   load: () => import('../star/entry'),
 };

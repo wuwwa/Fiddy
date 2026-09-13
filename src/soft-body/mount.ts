@@ -9,7 +9,7 @@ export async function mountSoftToy(host: HTMLElement, context: ToyContext, profi
   canvas.tabIndex = -1;
   canvas.setAttribute('role', 'application');
   canvas.setAttribute('aria-label', `Interactive ${profile.label}`);
-  canvas.setAttribute('aria-describedby', 'toy-instructions toy-touch-instructions keyboard-instructions');
+  canvas.setAttribute('aria-describedby', 'toy-instructions toy-touch-instructions toy-rotation-instructions keyboard-instructions');
   host.append(canvas);
   try {
     const controller = await createSoftToyScene(canvas, context, profile);

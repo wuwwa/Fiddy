@@ -1,4 +1,5 @@
 import type { ToyDefinition } from './types';
+import { softBodyControls } from './soft-body-copy';
 
 function DumplingIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -19,7 +20,7 @@ export const dumpling: ToyDefinition = {
     loading: 'Loading dumpling',
     instructions: ['Hold to sink in', 'Drag to stretch & twist'],
     touchInstructions: ['Hold to sink in', 'Two fingers to pinch & stretch'],
-    keyboardHint: <>Hold <kbd>space</kbd> <span>·</span> arrows to stretch <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to twist</>,
+    ...softBodyControls,
   },
   load: () => import('../dumpling/entry'),
 };

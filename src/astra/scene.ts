@@ -31,9 +31,7 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   const zoomIn = document.createElement('button'); zoomIn.type = 'button'; zoomIn.textContent = '+'; zoomIn.setAttribute('aria-label', 'Zoom in');
   const zoomLabel = document.createElement('span'); zoomLabel.className = 'astra-zoom-label'; zoomLabel.textContent = 'View';
   controls.append(motionButton, zoomLabel, zoomOut, zoomIn);
-  const caption = document.createElement('div'); caption.className = 'astra-caption';
-  caption.innerHTML = `<span>STARLIGHT STUDIES</span><span>${shape === 'swirl' ? '01 / Into the spiral' : '02 / A point in space'}</span>`;
-  wrapper.append(canvas, tabs, controls, caption); host.append(wrapper);
+  wrapper.append(canvas, tabs, controls); host.append(wrapper);
 
   let renderer: WebGLRenderer;
   try { renderer = new WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'high-performance' }); }
@@ -75,6 +73,11 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   const haloPoints = new Points(artwork, makeMaterial(true, false)), corePoints = new Points(artwork, makeMaterial(false, false));
   sculpture.add(haloPoints, corePoints);
   const rotation = new RotationMotion();
+  function resetRotation() {
+    rotation.reset();
+    if (shape === 'swirl') rotation.rotate(-.2, .26, -.12);
+  }
+  resetRotation();
   const keys = new Set<string>(), listeners: Array<() => void> = [];
   let width = 1, height = 1, zoom = 1, frame = 0, lastFrame = 0, clock = 0, frames = 0;
   let disposed = false, paused = context.preferences.paused, reduced = context.preferences.reducedMotion;
@@ -110,7 +113,7 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   }
   function reset() {
     if (disposed) return;
-    clearInput(); rotation.reset(); clock = 0; flowDistance = 0; setZoom(1); wake();
+    clearInput(); resetRotation(); clock = 0; flowDistance = 0; setZoom(1); wake();
   }
   function toggleMotion() {
     ambient = !ambient; updateMotionButton();
@@ -214,8 +217,7 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
   listen(canvas, 'webglcontextlost', ((event: Event) => {
     event.preventDefault(); if (!disposed) context.onError('The graphics connection was interrupted. Use Try again to restore the star field.');
   }) as EventListener);
-  function updateOutlineLabel() {
-    caption.lastElementChild!.textContent = `02 / ${outline.name}`;
+  function updateOutlineAccessibility() {
     canvas.setAttribute('aria-label', `Interactive starlight ${outline.name.toLowerCase()}. Drag to rotate. Arrow keys rotate, Q and E roll, plus and minus zoom, Space pauses motion, R resets.`);
   }
   function setOutline(next: Outline) {
@@ -228,14 +230,14 @@ export async function mountAstra(host: HTMLElement, context: ToyContext, shape: 
       material.uniforms.uCursorMask.value = next.id === 'cursor' ? 1 : 0;
     });
     artwork.dispose(); cursorPath?.dispose(); artwork = nextArtwork; cursorPath = nextPath; outline = next;
-    frameOutline(); updateOutlineLabel(); reset();
+    frameOutline(); updateOutlineAccessibility(); reset();
   }
   const studio = studioState ? createOutlineStudio(wrapper, studioState, {
     onOutline: setOutline,
     onSpeed(value) { flowSpeed = value; wake(); },
     onEditing(value) { editing = value; clearInput(); lastFrame = 0; canvas.tabIndex = value ? -1 : 0; wake(); },
   }, options.persistStudio !== false) : null;
-  if (studioState) updateOutlineLabel();
+  if (studioState) updateOutlineAccessibility();
   const observer = new ResizeObserver(resize); observer.observe(host);
   const dispose = () => {
     if (disposed) return;

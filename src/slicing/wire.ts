@@ -29,18 +29,22 @@ export class CuttingWire {
   update(line: CutLine | null, press: KnifePress, height: number, cameraDistance: number) {
     this.mesh.visible = !!line;
     if (!line) return;
-    const length = Math.min(6, line.width + 1.25), depth = press.depth;
+    const restLength = Math.min(6, line.width + 1.25), depth = press.depth;
     const load = press.phase === 'cutting' ? Math.sin(depth * Math.PI) * press.resistance : 0;
-    const bow = .19 * load;
+    // Gel holds the center back while the ends pull through. Extra tension
+    // straightens the cord; the shortened chord preserves its material length.
+    const bow = .38 * load / (.4 + 2.4 * press.tension);
+    const length = restLength / (1 + 8 * bow * bow / (3 * restLength * restLength));
     this.submerged.visible = depth > .08 && depth < 1;
     this.submergedMaterial.opacity = .42 * Math.sin(Math.PI * depth);
     // Keep the center readable on phones while preserving a threadlike silhouette.
-    const radius = .0115 * Math.min(1.8, cameraDistance / 10.7);
-    this.mesh.position.set(line.center.x, height + .21 - depth * (height + .235), line.center.z);
+    const radius = .0125 * Math.min(1.8, cameraDistance / 10.7);
+    this.material.emissiveIntensity = .12 + .18 * press.tension;
+    this.mesh.position.set(line.center.x, height + .21 - depth * (height + .235) - bow, line.center.z);
     this.mesh.rotation.y = -line.angle;
     for (let i = 0; i <= SEGMENTS; i++) {
       const t = i / SEGMENTS, x = (t - .5) * length, q = 1 - (2 * t - 1) ** 2;
-      const y = bow * q * q, slope = -8 * bow * q * (2 * t - 1) / length;
+      const y = bow * q, slope = -4 * bow * (2 * t - 1) / length;
       const inverseLength = 1 / Math.hypot(1, slope), taper = .7 + .3 * Math.sin(Math.PI * t) ** .3;
       for (let j = 0; j <= SIDES; j++) {
         const angle = j / SIDES * Math.PI * 2, c = Math.cos(angle), s = Math.sin(angle);

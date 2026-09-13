@@ -31,6 +31,14 @@ Gentle pair rotation now eases automatic inward pressure, allowing the existing 
 
 Verified: gentle rotation produces more local turning with less unintended indentation; matched pinches and common translations retain their behavior; lifting one finger preserves the other and restores its pressure smoothly. The Loop retains its actual opening and each material keeps its existing recovery. Physical phone feel still needs device testing before adding any further stored twist.
 
+## Implemented: upright shape rotation
+
+Jelly, Cushion, Loop, Star, Dumpling, and Putty turn around their vertical axis when a horizontal drag starts in the empty canvas beside them. The gesture keeps ownership until release, including when it crosses the skin; existing material grips exclude rotation. Left/Right arrows rotate the focused toy when Space is released. Holding Space retains pressing, arrow-key stretching, and Q/E twisting.
+
+The visible mesh and contact shadow turn together while the material cage remains in its local frame. Picking and camera-plane drags use the rotated transform, so newly exposed faces stay touchable and retained putty dents turn with the body. Rotation adds no pressure or fatigue. Small background movements are ignored; a moving release coasts briefly, while holding still before release keeps the selected angle. Reduced motion removes the coast. Reset restores the initial facing; cancellation, blur, resize, collection opening, and visibility changes stop motion and clear input while preserving orientation.
+
+Validation: `tests/rotation.test.ts` covers drag thresholds, full revolutions, release and cancellation, frame-rate consistency, and the floor/picking/pull mapping of all six shapes. `qa/rotation-smoke.mjs` uses trusted mouse, touch, and keyboard events to check gesture ownership, deformation after turning, reset, interruptions, reduced motion, idle rendering, and narrow layouts on WebGPU and WebGL. `qa/turn-smoke.mjs` checks that two-finger wringing retains local material behavior without rotating the whole shape. Physical phone feel still needs hands-on evaluation.
+
 ## Unscheduled idea: lift, drop, and settle
 
 Prototype a toy whose base can detach after a deliberate upward pull, then falls and squashes on landing. This needs gravity, ground contact, and a stable free-body mode, so it follows the anchored material interactions. Keep the fixed camera and bound off-screen travel.

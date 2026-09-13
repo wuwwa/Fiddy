@@ -4,8 +4,6 @@
 .astra-switch{position:absolute;z-index:2;top:28px;left:50%;transform:translateX(-50%);display:flex;gap:3px;padding:4px;border:1px solid #ffffff17;border-radius:30px;background:#0b111980;backdrop-filter:blur(14px)}
 .astra-switch a{padding:8px 20px;min-width:85px;text-align:center;font-size:12px;color:#81919d;text-decoration:none;border-radius:22px;transition:color .2s,background .2s}
 .astra-switch a:hover{color:#fff}.astra-switch a[aria-current]{background:#ffffff13;color:#e8f0f6}
-.astra-caption{position:absolute;pointer-events:none;left:40px;bottom:35px;display:flex;flex-direction:column;gap:9px}
-.astra-caption span:first-child{font-size:9px;letter-spacing:.2em;color:#8295a4}.astra-caption span:last-child{font-size:12px;color:#ccd5dd}
 .astra-motion-controls{position:absolute;z-index:2;bottom:34px;right:40px;display:flex;align-items:center;gap:6px}
 .astra-motion-controls button{min-height:40px;min-width:40px;background:#ffffff06;border:1px solid #ffffff12;color:#b7c5d0;border-radius:50%;font-size:19px;transition:background .2s}
 .astra-motion-controls button:first-child{font-size:12px;border-radius:30px;padding:0 17px;margin-right:9px;min-width:88px}
@@ -15,15 +13,15 @@
 .toy:has(.astra-surface) .wordmark>svg{width:25px;height:25px}
 .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .instructions{color:#bdcad3;font-size:12px;margin-bottom:14px}
 .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .keyboard-hint{color:#93a4b1}
-@media(max-width:900px){.astra-caption{left:25px}.astra-motion-controls{right:25px;gap:4px}.astra-motion-controls button:first-child{margin-right:2px}.astra-caption span:first-child{font-size:8px}.astra-caption span:last-child{font-size:10px}}
+@media(max-width:900px){.astra-motion-controls{right:25px;gap:4px}.astra-motion-controls button:first-child{margin-right:2px}}
 @media(max-width:700px){
  .astra-switch{top:79px}.astra-switch a{padding:7px 19px;min-width:76px}
  .toy:has(.astra-surface) .wordmark{font-size:23px}.toy:has(.astra-surface) .wordmark>svg{width:23px}
- .astra-caption{display:none}.astra-motion-controls{bottom:138px;right:50%;transform:translateX(50%);gap:7px;white-space:nowrap}
+ .astra-motion-controls{bottom:138px;right:50%;transform:translateX(50%);gap:7px;white-space:nowrap}
  .astra-motion-controls button{min-width:40px;min-height:40px}
  .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .instructions{font-size:11px}
 }
-@media(max-height:570px) and (min-width:701px){.astra-caption{bottom:23px}.astra-motion-controls{bottom:23px}.astra-switch{top:18px}}
+@media(max-height:570px) and (min-width:701px){.astra-motion-controls{bottom:23px}.astra-switch{top:18px}}
 
 .astra-shape-bar{position:absolute;z-index:4;top:86px;left:50%;transform:translateX(-50%);display:flex;gap:7px;white-space:nowrap}
 .astra-shape-bar>button{display:flex;align-items:center;justify-content:center;gap:9px;height:39px;border:1px solid #c5e1ff22;background:#0b151ddd;color:#d8e6ef;border-radius:24px;font-family:inherit;font-size:12px;font-weight:500;padding:0 15px;backdrop-filter:blur(18px);cursor:pointer}
@@ -33,12 +31,12 @@
 .astra-presets[hidden]{display:none}.astra-preset-heading{grid-column:1/-1;color:#8aa2b6;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:2px 2px 8px}
 .astra-presets>button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:13px 8px;border:1px solid transparent;border-radius:13px;background:#d7eaff05;color:#a6bbca;font-size:11px;cursor:pointer}.astra-presets>button svg{width:34px;height:34px}.astra-presets>button:hover{background:#e2f2ff0b;color:#e3f1ff}.astra-presets>button[aria-pressed=true]{background:#bbddff12;color:#e5f4ff;border-color:#bbddff37}
 .astra-speed{position:absolute;z-index:3;bottom:31px;left:40px;width:185px;display:grid;grid-template-columns:1fr auto;gap:9px 14px;align-items:center;color:#9eafbc;font-size:11px}
-.astra-speed output{color:#dce9f5;font-size:11px;font-variant-numeric:tabular-nums}.astra-speed input{width:100%;height:16px;margin:0;accent-color:#d6eaff;cursor:pointer;grid-column:1/-1}.astra-speed-reset{grid-column:1/-1;justify-self:start;border:0;padding:0;color:#718898;background:none;font-size:10px;cursor:pointer}.astra-speed-reset:hover{color:#e1effa}.astra-cursor .astra-caption{bottom:116px}.astra-cursor .astra-caption span:first-child{display:none}
+.astra-speed output{color:#dce9f5;font-size:11px;font-variant-numeric:tabular-nums}.astra-speed input{width:100%;height:16px;margin:0;accent-color:#d6eaff;cursor:pointer;grid-column:1/-1}.astra-speed-reset{grid-column:1/-1;justify-self:start;border:0;padding:0;color:#718898;background:none;font-size:10px;cursor:pointer}.astra-speed-reset:hover{color:#e1effa}
 .astra-draw-overlay{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;background:radial-gradient(ellipse at 50% 45%,#101e2dfc,#03090ffa 80%);padding:34px 30px;color:#dbe9f4}.astra-draw-overlay[hidden]{display:none}
 .astra-draw-heading{text-align:center;flex:none}.astra-eyebrow{font-size:9px;letter-spacing:.22em;color:#7d99b0}.astra-draw-heading h2{margin:12px 0 8px;font-size:29px;font-weight:500;letter-spacing:-1px}.astra-draw-heading p{font-size:12px;color:#8da5ba;margin:0 0 23px}
 .astra-drawing-frame{position:relative;width:min(760px,100%);flex:1;min-height:100px;border:1px solid #abcfff22;border-radius:22px;background-image:radial-gradient(#b4daff1e .8px,transparent .8px);background-size:22px 22px;overflow:hidden}.astra-drawing{display:block;width:100%;height:100%;position:absolute;inset:0;cursor:crosshair;touch-action:none}.astra-drawing:focus-visible{outline:2px solid #83bff6;outline-offset:-5px;border-radius:22px}.astra-drawing-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#597287;font-size:13px;pointer-events:none}.astra-drawing-hint[hidden]{display:none}
 .astra-draw-toolbar{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;flex:none}.astra-draw-toolbar button{border:1px solid #bfdfff24;border-radius:24px;background:#d9edff07;color:#b9cede;padding:11px 17px;font-size:12px;cursor:pointer}.astra-draw-toolbar button:hover{background:#d9edff14}.astra-draw-toolbar button:disabled{opacity:.3;cursor:default}.astra-draw-toolbar .astra-animate-button{background:#deefff;color:#122230;border-color:#deefff;font-weight:600;padding:12px 22px}.astra-draw-toolbar .astra-animate-button:hover{background:#fff}.astra-connect-label{display:flex;gap:7px;align-items:center;padding:0 10px;color:#96afc3;font-size:11px;cursor:pointer}.astra-connect-label input{accent-color:#c8e5ff}.astra-draw-message{height:18px;flex:none;margin:10px 0;color:#b8d6ee;font-size:11px;text-align:center}
-.astra-surface.is-drawing>.astra-motion-controls,.astra-surface.is-drawing>.astra-speed,.astra-surface.is-drawing>.astra-shape-bar,.astra-surface.is-drawing>.astra-switch,.astra-surface.is-drawing>.astra-caption{visibility:hidden}
+.astra-surface.is-drawing>.astra-motion-controls,.astra-surface.is-drawing>.astra-speed,.astra-surface.is-drawing>.astra-shape-bar,.astra-surface.is-drawing>.astra-switch{visibility:hidden}
 .toy-player:has(.astra-surface.is-drawing) .interaction-dock{visibility:hidden}
 .toy:has(.astra-surface.is-drawing) .masthead{visibility:hidden}
 .astra-presets>button[hidden]{display:none}.astra-presets>.astra-saved-drawing{grid-column:1/-1;flex-direction:row;justify-content:center;padding:10px}.astra-presets>.astra-saved-drawing svg{width:25px;height:25px}

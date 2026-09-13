@@ -60,6 +60,7 @@ export function ToyPlayer({ toy, paused, reducedMotion, sound, onSoundChange, co
     <section className="interaction-dock" aria-label={`${toy.name} controls`}>
       <p id="toy-instructions" className={`instructions ${toy.copy.touchInstructions ? 'instructions-pointer' : ''}`}>{toy.copy.instructions.map((instruction, index) => <span key={index}>{instruction}</span>)}</p>
       {toy.copy.touchInstructions && <p id="toy-touch-instructions" className="instructions instructions-touch">{toy.copy.touchInstructions.map((instruction, index) => <span key={index}>{instruction}</span>)}</p>}
+      {toy.copy.rotationHint && <p id="toy-rotation-instructions" className="rotation-instructions">{toy.copy.rotationHint}</p>}
       <div className="control-cluster">
         <div className="control-pill floating-surface">
           {supportsSound && <><button className="sound-toggle" onClick={toggleSound} disabled={status !== 'ready' || audioBusy} aria-pressed={sound} aria-label={sound ? `Mute ${toy.name.toLowerCase()} sounds` : `Enable ${toy.name.toLowerCase()} sounds`}><SoundIcon enabled={sound} /></button><span className="control-divider" /></>}

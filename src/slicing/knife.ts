@@ -27,13 +27,15 @@ export class KnifePress {
   depth = 0;
   speed = 0;
   pressure = .5;
+  // The cord is pre-tensioned, even when the user simply holds still.
+  tension = .6;
   resistance = 0;
   elapsed = 0;
   line: CutLine | null = null;
   private completionDelivered = false;
   begin(line: CutLine) {
     if (this.phase !== 'idle') return false;
-    this.line = line; this.phase = 'cutting'; this.depth = 0; this.speed = 0; this.elapsed = 0; this.pressure = .5;
+    this.line = line; this.phase = 'cutting'; this.depth = 0; this.speed = 0; this.elapsed = 0; this.pressure = .5; this.tension = .6;
     this.completionDelivered = false;
     return true;
   }
@@ -42,10 +44,11 @@ export class KnifePress {
     if (!Number.isFinite(dt) || dt <= 0) return false;
     dt = Math.min(dt, .05); this.elapsed += dt;
     if (this.phase === 'cutting') {
+      this.tension += (.2 + .8 * this.pressure - this.tension) * (1 - Math.exp(-dt * 12));
       const load = Math.min(1, (this.line?.length ?? 3) / 3.3);
       // Enter gently, meet more resistance in the middle, then ease through the base.
       this.resistance = (.35 + .65 * Math.sin(Math.PI * this.depth)) * (.6 + load * .4);
-      const desired = (.26 + .2 * this.pressure) / (.8 + this.resistance * .45);
+      const desired = (.21 + .25 * this.tension) / (.8 + this.resistance * .45);
       this.speed += (desired - this.speed) * (1 - Math.exp(-dt * 5));
       this.depth = Math.min(1, this.depth + this.speed * dt);
       if (this.depth >= 1 && !this.completionDelivered) {
@@ -53,8 +56,9 @@ export class KnifePress {
         return true;
       }
     } else if (this.phase === 'lifting') {
+      this.tension += (.6 - this.tension) * (1 - Math.exp(-dt * 12));
       this.speed = 0; this.resistance = 0; this.depth = Math.max(0, this.depth - dt * 1.9);
-      if (this.depth === 0) { this.phase = 'idle'; this.line = null; }
+      if (this.depth === 0) this.reset();
     }
     return false;
   }
@@ -64,7 +68,7 @@ export class KnifePress {
     else this.phase = 'lifting';
   }
   reset() {
-    this.phase = 'idle'; this.depth = 0; this.speed = 0; this.resistance = 0; this.elapsed = 0; this.line = null; this.completionDelivered = false;
+    this.phase = 'idle'; this.depth = 0; this.speed = 0; this.pressure = .5; this.tension = .6; this.resistance = 0; this.elapsed = 0; this.line = null; this.completionDelivered = false;
   }
   get moving() { return this.phase === 'cutting' || this.phase === 'lifting'; }
 }
