@@ -14,7 +14,7 @@ export class ToySession {
   private disposed = false;
   private failed = false;
   private started = false;
-  private soundQueue: Promise<void> = Promise.resolve();
+  private soundQueue: Promise<void> | null = null;
   private preferences: ToyPreferences;
 
   constructor(
@@ -74,7 +74,7 @@ export class ToySession {
 
   setSound(enabled: boolean): Promise<void> {
     this.preferences.sound = enabled;
-    this.soundQueue = this.soundQueue.then(async () => {
+    const apply = async () => {
       if (!this.active || !this.controller?.setSound) return;
       try { await this.controller.setSound(this.preferences.sound); }
       catch {
@@ -83,8 +83,18 @@ export class ToySession {
           this.events.onSoundError('Sound couldn’t start. Tap to try again.');
         }
       }
+    };
+
+    // Start the first change in the tap/click call stack. Mobile Safari only
+    // allows AudioContext creation/resume while user activation is still live;
+    // putting every change behind Promise.then() loses that activation.
+    const next = this.soundQueue ? this.soundQueue.then(apply) : apply();
+    let tracked: Promise<void>;
+    tracked = next.finally(() => {
+      if (this.soundQueue === tracked) this.soundQueue = null;
     });
-    return this.soundQueue;
+    this.soundQueue = tracked;
+    return tracked;
   }
 
   private fail(message: string) {

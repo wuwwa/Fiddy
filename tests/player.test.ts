@@ -94,6 +94,18 @@ test('asynchronous sound changes finish in order and audio failure is nonfatal',
   assert.deepEqual(errors, []); assert.equal(resets, 1); player.dispose();
 });
 
+test('the first sound change starts within the user gesture call stack', async () => {
+  const calls: boolean[] = [];
+  const { player } = session(async () => ({ mount: async () => ({
+    reset() {}, dispose() {}, setSound(value) { calls.push(value); },
+  }) }));
+  await player.start();
+  const enabling = player.setSound(true);
+  assert.deepEqual(calls, [true]);
+  await enabling;
+  player.dispose();
+});
+
 test('a runtime error stops the toy and rejects later callbacks', async () => {
   let context!: ToyContext, disposals = 0;
   const { player, errors, interactions } = session(async () => ({ mount: async (_host, ctx) => {

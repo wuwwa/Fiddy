@@ -62,10 +62,10 @@ export function ToyPlayer({ toy, paused, reducedMotion, sound, onSoundChange, co
       {toy.copy.touchInstructions && <p id="toy-touch-instructions" className="instructions instructions-touch">{toy.copy.touchInstructions.map((instruction, index) => <span key={index}>{instruction}</span>)}</p>}
       <div className="control-cluster">
         <div className="control-pill floating-surface">
-          {supportsSound && <><button onClick={toggleSound} disabled={status !== 'ready' || audioBusy} aria-pressed={sound} aria-label={sound ? `Mute ${toy.name.toLowerCase()} sounds` : `Enable ${toy.name.toLowerCase()} sounds`}><SoundIcon enabled={sound} /><span>Sound {sound ? 'on' : 'off'}</span></button><span className="control-divider" /></>}
+          {supportsSound && <><button className="sound-toggle" onClick={toggleSound} disabled={status !== 'ready' || audioBusy} aria-pressed={sound} aria-label={sound ? `Mute ${toy.name.toLowerCase()} sounds` : `Enable ${toy.name.toLowerCase()} sounds`}><SoundIcon enabled={sound} /></button><span className="control-divider" /></>}
           <button onClick={reset} disabled={status === 'loading'} aria-label={`Reset ${toy.name.toLowerCase()}`}><ResetIcon /><span>Reset</span></button>
         </div>
-        <button className="collection-trigger floating-surface" onClick={onOpenCollection} aria-label="Open collection" title="Collection" aria-haspopup="dialog" aria-expanded={collectionOpen}><CollectionIcon /></button>
+        <button className="collection-trigger floating-surface" onClick={onOpenCollection} aria-label="Open collection" aria-haspopup="dialog" aria-expanded={collectionOpen}><CollectionIcon /><span>Collection</span></button>
       </div>
       <p className="keyboard-hint" id="keyboard-instructions">{toy.copy.keyboardHint}</p>
       <span className="sr-only" role="status">{audioError}</span>

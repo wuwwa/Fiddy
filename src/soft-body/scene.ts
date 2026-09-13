@@ -10,7 +10,9 @@ import { pickSoftSurface } from './picking';
 import { dragPressure, localDragDelta } from './input';
 import { CapturedPointers } from './pointers';
 import { PairTurnPressure } from './pair-turn';
+import { UprightRotation } from './rotation';
 import { SoftBodyAudio } from './audio';
+import { disposeRendererOutput, trackRendererTextures } from './renderer-textures';
 import { entranceAt, entranceStretchAt, ENTRANCE_DURATION } from './entrance';
 import { MaterialResponse } from './reactions';
 import { BurstVisual, recoveryAt } from './burst-visual';
@@ -26,6 +28,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
   });
   let disposed = false;
   const physics = new SoftBodyPhysics(profile.feel);
+  const rotation=new UprightRotation();
   const ripples=new SurfaceRipples();
   const audio = new SoftBodyAudio(profile.soundPitch,undefined,profile.soundTexture);
   const response=new MaterialResponse(profile.reaction);
@@ -37,13 +40,16 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
   const cleanup: (()=>void)[] = [];
   let environmentTarget: THREE.RenderTarget | null = null;
   let pmrem: THREE.PMREMGenerator | null = null;
+  let disposeRendererTextures = () => {};
   let frameId = 0;
   let requestFrame=()=>{};
   const dispose = () => {
     if(disposed) return;
     disposed=true;
     cancelAnimationFrame(frameId);
-    for(const fn of cleanup) fn();
+    for(const fn of cleanup.splice(0)) fn();
+    requestFrame=()=>{};
+    renderer.onDeviceLost=()=>{};
     audio.dispose();
     scene.traverse(object=>{
       if(object instanceof THREE.Mesh) {
@@ -54,12 +60,18 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
     });
     environmentTarget?.dispose();
     pmrem?.dispose();
+    disposeRendererTextures();
+    disposeRendererOutput(renderer);
+    scene.clear();
+    scene.environment=null;
     renderer.dispose();
   };
 
   try {
     await renderer.init();
     if(signal.aborted) { dispose(); return null; }
+    // init() selects the actual backend, including automatic WebGL fallback.
+    disposeRendererTextures=trackRendererTextures(renderer.backend as unknown as Parameters<typeof trackRendererTextures>[0]);
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1;
     renderer.onDeviceLost = () => {
@@ -118,20 +130,22 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
 
     physics.reducedMotion=context.preferences.reducedMotion;
     let entranceAge=0;
-    const updateEntrance=()=>{
+    const updatePose=()=>{
       const entrance=entranceAt(entranceAge,physics.reducedMotion);
       const stretch=entranceStretchAt(entranceAge,physics.reducedMotion);
       const width=entrance.scale/Math.sqrt(stretch);
       const height=entrance.scale*stretch;
       jelly.scale.set(width,height,width);
       jelly.position.y=FLOOR*(1-height)+entrance.lift;
+      jelly.rotation.y=rotation.angle;
       const compression=physics.compressionAmount*(response.bursting?1-recoveryAt(response.age):1);
       opticalDepth.value=finish.thickness/Math.sqrt(1-compression);
       contact.shadow.scale.setScalar(1/Math.sqrt(1-compression));
       contact.shadow.material.opacity=entrance.shadow;
+      contact.shadow.rotation.set(-Math.PI/2,0,rotation.angle);
       jelly.updateMatrixWorld();
     };
-    updateEntrance();
+    updatePose();
 
     let pixelRatio=Math.min(Math.max(devicePixelRatio || 1,1.5), 1.75);
     let layoutWidth=0,layoutHeight=0;
@@ -176,6 +190,8 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       dragLength:number; pendingMovement:number; startedAt:number; clientX:number; clientY:number;
     };
     const pointers=new CapturedPointers<PointerGrab>(canvas,MAX_CONTACTS);
+    const rotationPointers=new CapturedPointers<object>(canvas,1);
+    const rotationKeys=new Set<string>();
     const pairTurns=new PairTurnPressure(MAX_CONTACTS);
     const KEYBOARD_CONTACT=-1;
     let keyboard=false;
@@ -193,7 +209,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       raycaster.setFromCamera(pointer,camera);
     };
     const syncInteraction=()=>{
-      const active=pointers.size>0 || keyboard;
+      const active=pointers.size>0 || keyboard || rotationPointers.size>0 || rotationKeys.size>0;
       canvas.classList.toggle('is-grabbing',active);
       context.onInteractionChange(active);
     };
@@ -224,16 +240,25 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
     const endAll=()=>{
       pointers.clear();
       pairTurns.clear();
+      rotationPointers.clear();rotationKeys.clear();rotation.stop();
       keyboard=false;keys.clear();keyboardOffset.set(0,0,0);keyboardTwist=0;
       gestureMotion=0;lastAudioCompression=THREE.MathUtils.clamp(physics.compressionAmount/0.54,0,1);
       physics.releaseAll();
       syncInteraction();requestFrame();
     };
     const down=(event:PointerEvent)=>{
-      if(paused || response.bursting || keyboard || pointers.has(event.pointerId) || pointers.size>=MAX_CONTACTS || event.button!==0) return;
+      if(paused || response.bursting || keyboard || rotationPointers.size || rotationKeys.size || pointers.has(event.pointerId) || pointers.size>=MAX_CONTACTS || event.button!==0) return;
+      rotation.stop();updatePose();
       setRay(event.clientX,event.clientY);
       const hit=pickSoftSurface(raycaster,jelly,camera,pointer);
-      if(!hit) return;
+      if(!hit) {
+        // The gesture is chosen at pointerdown and never changes when a drag
+        // crosses the skin. Existing grips always retain their material action.
+        if(pointers.size || !rotationPointers.begin(event.pointerId,{}))return;
+        rotation.begin(event.clientX,Math.min(canvas.clientWidth,canvas.clientHeight),event.timeStamp);
+        event.preventDefault();canvas.classList.add('is-pointer-focused');canvas.focus({preventScroll:true});
+        syncInteraction();requestFrame();return;
+      }
       const contact:PointerGrab={
         id:event.pointerId,pressure:1,appliedPressure:1,
         anchor:hit.point.clone(),normal:(hit.normal ?? hit.face!.normal).clone().normalize(),
@@ -258,6 +283,9 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       requestFrame();
     };
     const move=(event:PointerEvent)=>{
+      if(rotationPointers.has(event.pointerId)) {
+        rotation.move(event.clientX,event.timeStamp);updatePose();requestFrame();return;
+      }
       const contact=pointers.get(event.pointerId);
       if(!contact) {
         if(event.pointerType==='mouse' && pointers.size===0 && !keyboard) {
@@ -287,6 +315,12 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
     };
     const up=(event:PointerEvent)=>{
       const released=event.type==='pointerup';
+      if(rotationPointers.has(event.pointerId)) {
+        if(released)move(event);
+        rotation.release(event.timeStamp,released && !physics.reducedMotion);
+        rotationPointers.end(event.pointerId);
+        syncInteraction();requestFrame();return;
+      }
       // Some devices coalesce the last movement into pointerup. Cancellation
       // coordinates may be stale or zero, so only sample an actual release.
       if(released && pointers.has(event.pointerId)) move(event);
@@ -296,7 +330,8 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       if(paused || response.bursting) return;
       if(event.code==='Space') {
         event.preventDefault();
-        if(event.repeat || keyboard || pointers.size>0) return;
+        if(event.repeat || keyboard || pointers.size>0 || rotationPointers.size || rotationKeys.size) return;
+        rotation.stop();updatePose();
         canvas.classList.remove('is-pointer-focused');
         keyboard=true; keyboardOffset.set(0,0,0);keyboardTwist=0;keyboardStrength=0.5;keyboardStartedAt=performance.now();
         // Pick actual skin, even on hollow or lobed shapes and stretched tips.
@@ -315,11 +350,19 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
         requestFrame();
       } else if(keyboard && (event.code.startsWith('Arrow') || event.code==='KeyQ' || event.code==='KeyE')) {
         event.preventDefault(); keys.add(event.code);
+      } else if(!keyboard && (event.code==='ArrowLeft' || event.code==='ArrowRight')) {
+        event.preventDefault();
+        if(pointers.size || rotationPointers.size || event.repeat)return;
+        canvas.classList.remove('is-pointer-focused');
+        rotationKeys.add(event.code);
+        rotation.rotate(event.code==='ArrowRight'?0.055:-0.055);
+        updatePose();syncInteraction();requestFrame();
       }
     };
     const keyUp=(event:KeyboardEvent)=>{
       if(event.code==='Space' && keyboard) {event.preventDefault();endKeyboard();}
       keys.delete(event.code);
+      if(rotationKeys.delete(event.code)) {syncInteraction();requestFrame();}
     };
     const leave=()=>{canvas.classList.remove('is-hovering');};
     const cancelGrab=()=>{endAll();audio.stop();canvas.classList.remove('is-pointer-focused');};
@@ -386,6 +429,8 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       const rawElapsed=lastTime ? (time-lastTime)/1000 : STEP;
       const elapsed=Math.min(rawElapsed,0.05);
       lastTime=time;
+      if(rotationKeys.size)rotation.rotate(((rotationKeys.has('ArrowRight')?1:0)-(rotationKeys.has('ArrowLeft')?1:0))*elapsed*1.5);
+      else rotation.step(elapsed);
       let keyboardMovement=0;
       if(keyboard) {
         keyboardPreviousOffset.copy(keyboardOffset);
@@ -420,7 +465,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       updateMaterialResponse(elapsed);
       updateGestureAudio(elapsed,keyboardMovement);
       entranceAge=Math.min(ENTRANCE_DURATION,entranceAge+elapsed);
-      updateEntrance();
+      updatePose();
       ripples.advance(elapsed);
       if(response.bursting) burst?.update(response.age,physics.reducedMotion);
       else updateSoftSurface(geometry,physics,original,bindings,ripples,accumulator/STEP);
@@ -432,7 +477,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       fps=fps*0.97+(1/Math.max(rawElapsed,0.001))*0.03;
       if(frames>120 && rawElapsed>1/52) slowFrames++; else slowFrames=Math.max(0,slowFrames-1);
       if(slowFrames>100 && pixelRatio>0.85) {pixelRatio=Math.max(0.85,pixelRatio*0.8);resize();slowFrames=0;}
-      const keepRunning=activity.update(elapsed,entranceAge>=ENTRANCE_DURATION && !ripples.active && physics.isAtRest() && !response.active);
+      const keepRunning=activity.update(elapsed,entranceAge>=ENTRANCE_DURATION && !ripples.active && physics.isAtRest() && !response.active && !rotation.active && !rotationKeys.size);
       if(import.meta.env.DEV && (frames%6===0 || response.bursting || !keepRunning)) {
         const state=physics.diagnostics();peakDisplacement=Math.max(peakDisplacement,state.displacement);
         const bounds=geometry.boundingBox!;
@@ -448,6 +493,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
             normalSample:[normals.getX(0),normals.getY(0),normals.getZ(0),normals.getX(normalMiddle),normals.getY(normalMiddle),normals.getZ(normalMiddle)],
             sphereRadius:geometry.boundingSphere!.radius},
           pairTurn:pairTurns.diagnostics(),
+          rotation:{angle:rotation.angle,velocity:rotation.velocity,pointerCount:rotationPointers.size,keyboardActive:rotationKeys.size>0},
           audio:audio.diagnostics(),memory:{...renderer.info.memory}});
       }
       inFrame=false;
@@ -467,10 +513,10 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
     signal.addEventListener('abort',dispose,{once:true});
     cleanup.push(()=>signal.removeEventListener('abort',dispose));
     return {
-      reset:()=>{endAll();audio.stop();response.reset();burst?.clear();physics.reset();ripples.clear();requestFrame();},
+      reset:()=>{endAll();rotation.reset();updatePose();audio.stop();response.reset();burst?.clear();physics.reset();ripples.clear();requestFrame();},
       setSound:async(enabled)=>{await audio.setEnabled(enabled);requestFrame();},
       setPaused:(value)=>{paused=value;if(value){endAll();audio.stop();}lastTime=0;accumulator=0;if(!value)requestFrame();},
-      setReducedMotion:(value)=>{physics.reducedMotion=value;if(value)ripples.clear();requestFrame();},
+      setReducedMotion:(value)=>{physics.reducedMotion=value;if(value){ripples.clear();rotation.velocity=0;}requestFrame();},
       dispose,
     };
   } catch(error) {

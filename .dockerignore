@@ -1,0 +1,17 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!index.html
+!tsconfig.json
+!vite.config.ts
+!src/
+!src/**
+!public/
+!public/**
+!config/
+!config/**
+!scripts/
+!scripts/prepare-fly.ts
+!deploy/
+!deploy/nginx.conf

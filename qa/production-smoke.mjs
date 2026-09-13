@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 
 const baseline=process.argv.includes('--baseline');
 const origin=process.env.QA_ORIGIN ?? 'http://127.0.0.1:4173';
-const artifacts=resolve('qa/artifacts');await mkdir(artifacts,{recursive:true});
+const artifacts=resolve(process.env.QA_ARTIFACTS ?? 'qa/artifacts');await mkdir(artifacts,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'codex-player-'));
 const chrome=spawn(process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',[
   '--headless=new','--remote-debugging-port=0',`--user-data-dir=${profile}`,'--no-first-run',
@@ -80,13 +80,15 @@ try {
   socket.addEventListener('message',event=>{
     const message=JSON.parse(event.data);
     if(message.id){const request=pending.get(message.id);if(!request)return;pending.delete(message.id);if(message.error)request.reject(new Error(JSON.stringify(message.error)));else request.resolve(message.result);}
-    else if(message.method==='Runtime.exceptionThrown' || message.method==='Log.entryAdded' && message.params.entry.level==='error')errors.push(message);
+    else if(message.method==='Runtime.exceptionThrown' || message.method==='Log.entryAdded' && message.params.entry.level==='error' || message.method==='Runtime.consoleAPICalled' && message.params.type==='error')errors.push(message);
     else if(message.method==='Page.frameNavigated' || message.method==='Page.navigatedWithinDocument')navigationEvents.push({method:message.method,params:message.params});
     else if(message.method==='Runtime.consoleAPICalled' && message.params.args.some(arg=>String(arg.value).includes('[vite]')))navigationEvents.push({method:message.method,messages:message.params.args.map(arg=>arg.value)});
   });
   const {targetId}=await send('Target.createTarget',{url:'about:blank'},null);
   ({sessionId:session}=await send('Target.attachToTarget',{targetId,flatten:true},null));
   await send('Page.enable');await send('Runtime.enable');await send('Log.enable');
+  const graphics=await send('SystemInfo.getInfo',{},null);
+  record('graphics environment',{devices:graphics.gpu.devices,renderer:graphics.gpu.auxAttributes?.glRenderer});
   await send('Page.addScriptToEvaluateOnNewDocument',{source:'window.__qaDocument=crypto.randomUUID()'});
   await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
 

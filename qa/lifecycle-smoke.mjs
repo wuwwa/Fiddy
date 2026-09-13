@@ -4,9 +4,9 @@ import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const baseline=process.argv.includes('--baseline');
+const backend=process.argv.includes('--webgl')?'webgl':'webgpu';
 const origin=process.env.QA_ORIGIN ?? 'http://127.0.0.1:4173';
-const artifacts=resolve(process.env.QA_ARTIFACTS ?? 'qa/artifacts');await mkdir(artifacts,{recursive:true});
+const artifacts=resolve('qa/artifacts');await mkdir(artifacts,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'codex-player-'));
 const chrome=spawn(process.env.CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',[
   '--headless=new','--remote-debugging-port=0',`--user-data-dir=${profile}`,'--no-first-run',
@@ -47,11 +47,6 @@ const waitFor=async(predicate,label,timeout=20000)=>{
   throw new Error(`${label}: ${JSON.stringify(await state())}`);
 };
 const record=(label,data)=>{results.push({label,...data});console.log(JSON.stringify({label,...data}));};
-const screenshot=async label=>{
-  const path=join(artifacts,`player-${baseline?'before':'after'}-${label}.png`);
-  const {data}=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
-  await writeFile(path,Buffer.from(data,'base64'));return path;
-};
 const click=async selector=>{
   if(await evaluate(`document.querySelector('dialog')?.getAnimations().some(a=>a.playState==='running')`))await delay(240);
   const point=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)return null;e.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -80,7 +75,7 @@ try {
   socket.addEventListener('message',event=>{
     const message=JSON.parse(event.data);
     if(message.id){const request=pending.get(message.id);if(!request)return;pending.delete(message.id);if(message.error)request.reject(new Error(JSON.stringify(message.error)));else request.resolve(message.result);}
-    else if(message.method==='Runtime.exceptionThrown' || message.method==='Log.entryAdded' && message.params.entry.level==='error')errors.push(message);
+    else if(message.method==='Runtime.exceptionThrown' || message.method==='Log.entryAdded' && message.params.entry.level==='error' || message.method==='Runtime.consoleAPICalled' && message.params.type==='error')errors.push(message);
     else if(message.method==='Page.frameNavigated' || message.method==='Page.navigatedWithinDocument')navigationEvents.push({method:message.method,params:message.params});
     else if(message.method==='Runtime.consoleAPICalled' && message.params.args.some(arg=>String(arg.value).includes('[vite]')))navigationEvents.push({method:message.method,messages:message.params.args.map(arg=>arg.value)});
   });
@@ -90,28 +85,19 @@ try {
   await send('Page.addScriptToEvaluateOnNewDocument',{source:'window.__qaDocument=crypto.randomUUID()'});
   await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
 
-  await viewport(1100,800);
-  await send('Page.navigate',{url:origin+'/?toy=unknown'});
-  await waitFor(s=>s.toy==='jelly'&&s.ready,'Untrusted route fallback');
-  await evaluate("history.pushState({},'', '?toy='+encodeURIComponent('<img src=x onerror=window.__attack=true>'));dispatchEvent(new PopStateEvent('popstate'))");
-  assert.equal(new URL((await state()).url).searchParams.get('toy'),'jelly');
-  assert.equal(await evaluate('window.__attack===true'),false);
-  await evaluate("localStorage.setItem('astra-shape-studio-v1',JSON.stringify({preset:'<img src=x onerror=window.__attack=true>',speed:999,strokes:[[['<script>',2],[0,0],[1,1]],null,42],connectEnds:'true'}))");
-  await send('Page.navigate',{url:origin+'/?toy=astra-cursor'});await waitFor(s=>s.toy==='astra-cursor'&&s.ready,'Hostile saved state handled');
-  assert.equal(await evaluate('window.__attack===true'),false);
-  assert.equal(await evaluate("document.querySelector('#astra-flow-speed').value"),'3');
-  const before=errors.length;assert.equal(before,0,JSON.stringify(errors));
-  const probes=await evaluate("(async()=>{const violations=[];document.addEventListener('securitypolicyviolation',e=>violations.push({directive:e.effectiveDirective,blocked:e.blockedURI}));const script=document.createElement('script');script.textContent='window.__inlineExecuted=true';document.head.append(script);let connectBlocked=false;try{await fetch('https://example.invalid/security-probe');}catch{connectBlocked=true;}await new Promise(r=>setTimeout(r,150));script.remove();return {inlineBlocked:window.__inlineExecuted!==true,connectBlocked,violations};})()");
-  assert.ok(probes.inlineBlocked&&probes.connectBlocked);assert.ok(probes.violations.some(v=>v.directive==='script-src-elem'));assert.ok(probes.violations.some(v=>v.directive==='connect-src'));
-  const scriptPath=await evaluate("new URL(document.querySelector('script[src]').src).pathname");
-  const asset=await fetch(origin+scriptPath);assert.match(asset.headers.get('cache-control')??'',/immutable/);assert.match(asset.headers.get('content-type')??'',/javascript/);
-  const doc=await fetch(origin+'/');assert.equal(doc.headers.get('cache-control'),'no-cache');assert.match(doc.headers.get('content-security-policy')??'',/frame-ancestors 'none'/);
-  const runtime=await evaluate("performance.getEntriesByType('resource').filter(r=>!r.name.endsWith('security-probe')).map(r=>r.name)");
-  assert.ok(runtime.every(url=>new URL(url).origin===new URL(origin).origin));
-  record('security checks passed',{probes,assetHeaders:Object.fromEntries(asset.headers),runtimeRequests:runtime,expectedCspErrors:errors.length-before});
-}catch(error){console.error(error);process.exitCode=1;results.push({failure:String(error)});}
-finally{
- await writeFile(join(artifacts,'production-security-results.json'),JSON.stringify({results,errors},null,2));
- if(socket?.readyState===WebSocket.OPEN){try{await send('Browser.close',{},null);}catch{}socket.close();}
- await delay(300);if(chrome.exitCode===null)chrome.kill();
-}
+ await viewport(1100,800);await send('Page.navigate',{url:origin+'/?toy=liquid-light&renderer='+(process.argv.includes('--webgl')?'webgl':'webgpu')});await waitFor(s=>s.ready,'ready');
+ const select=async toy=>{await click('.collection-trigger');await waitFor(s=>s.dialog.open,'open');await click('.collection-item[href*="toy='+toy+'"]');await waitFor(s=>s.toy===toy&&s.ready&&!s.dialog.open,'ready '+toy);};
+ for(let cycle=0;cycle<12;cycle++){
+  for(const toy of [process.argv.find(a=>a.startsWith('--toy='))?.slice(6)??'jelly','liquid-light']){await select(toy);await delay(250);}
+  await delay(1200);await send('HeapProfiler.collectGarbage');
+  record('cycle '+cycle,{heap:await send('Runtime.getHeapUsage'),dom:await send('Memory.getDOMCounters')});
+ }
+ const warm=results[3],end=results.at(-1);
+ assert.ok(end.heap.usedSize-warm.heap.usedSize<4*1024*1024,'Heap grows after warm-up');
+ assert.ok(end.heap.backingStorageSize-warm.heap.backingStorageSize<256*1024,'Backing storage grows after warm-up');
+ assert.ok(end.dom.nodes-warm.dom.nodes<=5,'Retired DOM nodes accumulate');
+ assert.ok(end.dom.jsEventListeners-warm.dom.jsEventListeners<=2,'Retired listeners accumulate');
+ assert.equal(errors.length,0,JSON.stringify(errors));
+ record('passed',{backend,heapGrowthAfterWarmup:end.heap.usedSize-warm.heap.usedSize});
+}catch(e){console.error(e);process.exitCode=1;}
+finally{await writeFile(join(artifacts,'lifecycle-'+backend+'-results.json'),JSON.stringify({results,errors},null,2));if(socket?.readyState===WebSocket.OPEN){try{await send('Browser.close',{},null);}catch{}socket.close();}await delay(300);if(chrome.exitCode===null)chrome.kill();}
