@@ -1,5 +1,6 @@
 import type { ToyDefinition } from './types';
 import { softBodyControls } from './soft-body-copy';
+import { freePlay } from './free-play';
 
 function LoopIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -9,7 +10,8 @@ function LoopIcon() {
 }
 
 export const loop: ToyDefinition = {
-  id: 'loop', name: 'Loop',
+  freePlay: freePlay('loop'),
+  id: 'loop', preview: '/previews/loop.webp', name: 'Loop',
   description: 'A resilient gel ring with a soft, stretchable rim.',
   icon: LoopIcon,
   theme: {

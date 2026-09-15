@@ -1,10 +1,12 @@
-import type { ToyController, ToyDefinition, ToyPreferences } from '../toys/types';
+import type { ToyController, ToyDefinition, ToyPreferences, TransformationState, BonusRoundSnapshot } from '../toys/types';
 
 export interface SessionEvents {
   onReady(supportsSound: boolean): void;
   onInteractionChange(active: boolean): void;
   onError(message: string): void;
   onSoundError(message: string): void;
+  onTransformationChange?(state: TransformationState): void;
+  onBonusRoundChange?(state: BonusRoundSnapshot): void;
 }
 
 /** Owns one mounted toy and prevents callbacks from retired sessions. */
@@ -37,6 +39,8 @@ export class ToySession {
         theme: this.definition.theme,
         preferences: { ...this.preferences },
         onInteractionChange: active => { if (this.active) this.events.onInteractionChange(active); },
+        onTransformationChange: state => { if (this.active) this.events.onTransformationChange?.(state); },
+        onBonusRoundChange: state => { if (this.active) this.events.onBonusRoundChange?.(state); },
         onError: message => this.fail(message),
       });
       if (!this.active) { this.destroy(controller); return; }
@@ -70,6 +74,24 @@ export class ToySession {
     if (!this.active) return;
     try { this.controller?.setReducedMotion?.(reduced); }
     catch { this.fail('This toy could not update its motion settings. Please try again.'); }
+  }
+
+  setTransformation(enabled: boolean) {
+    if (!this.active) return;
+    try { this.controller?.setTransformation?.(enabled); }
+    catch { this.fail('This toy could not change its material. Try again to restart it.'); }
+  }
+
+  startBonusRound() {
+    if (!this.active) return;
+    try { this.controller?.startBonusRound?.(); }
+    catch { this.fail('The bonus could not start. Try again to restart Jelly.'); }
+  }
+
+  finishBonusRound() {
+    if (!this.active) return;
+    try { this.controller?.finishBonusRound?.(); }
+    catch { this.fail('The bonus could not finish. Try again to restart Jelly.'); }
   }
 
   setSound(enabled: boolean): Promise<void> {

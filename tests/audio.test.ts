@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SoftBodyAudio, type AudioMotion } from '../src/soft-body/audio.ts';
+import type { FoleyBank, FoleyLoader } from '../src/audio/foley.ts';
 
 class FakeParam {
   private current = 0;
@@ -64,7 +65,8 @@ class FakeSource extends FakeNode {
   readonly frequency = new FakeParam('oscillator frequency');
   readonly detune = new FakeParam('source detune');
   readonly playbackRate = new FakeParam('playback rate');
-  start(time = 0) {
+  start(time = 0, offset = 0) {
+    assert.ok(Number.isFinite(offset) && offset >= 0);
     assert.ok(!this.started && Number.isFinite(time) && time >= 0);
     this.started = true;
   }
@@ -131,15 +133,67 @@ class FakeContext {
   get masterConnections() { return this.nodes.filter(node => node.outputs.has(this.destination)); }
 }
 
-function audioFixture(pitch = 1, texture:'gel'|'putty'='gel') {
+function makeBank(context: FakeContext): FoleyBank {
+  const clip = (duration: number) => context.createBuffer(1, Math.round(context.sampleRate * duration), context.sampleRate) as unknown as AudioBuffer;
+  return { press: [clip(.42), clip(.42)], release: [clip(.46), clip(.46)], pop: [clip(.38), clip(.48)], motion: clip(2.75) };
+}
+
+function audioFixture(pitch = 1, texture:'gel'|'putty'|'cloth'='gel', loader?: FoleyLoader) {
   const context = new FakeContext();
   let contextsCreated = 0;
-  const audio = new SoftBodyAudio(pitch, () => { contextsCreated++; return context as unknown as AudioContext; },texture);
+  const audio = new SoftBodyAudio(pitch, () => { contextsCreated++; return context as unknown as AudioContext; },texture, loader ?? (async () => makeBank(context)));
   return { audio, context, contextsCreated: () => contextsCreated };
 }
 
 const moving: AudioMotion = { contacts: 2, compression: 0.35, stretch: 0.55, motion: 0.45, twist: 0.2 };
 const still: AudioMotion = { contacts: 0, compression: 0, stretch: 0, motion: 0, twist: 0 };
+
+test('recording variations rotate across presses without creating oscillators', async () => {
+  const { audio, context } = audioFixture();
+  await audio.setEnabled(true);
+  audio.play('press'); context.advance(1);
+  audio.play('press'); context.advance(1);
+  audio.play('press');
+  assert.notEqual(context.sources[0].buffer, context.sources[1].buffer);
+  assert.equal(context.sources[0].buffer, context.sources[2].buffer);
+  assert.ok(context.sources.every(source => source.kind === 'buffer source'));
+  assert.notEqual(context.sources[0].playbackRate.value, context.sources[2].playbackRate.value);
+  audio.dispose();
+});
+
+test('mute or disposal during recording downloads cannot start late audio', async () => {
+  for (const action of ['mute', 'dispose']) {
+    let resolve!: (bank: FoleyBank) => void;
+    const { audio, context } = audioFixture(1, 'gel', () => new Promise(done => { resolve = done; }));
+    const enabling = audio.setEnabled(true);
+    assert.equal(context.resumeCalls, 1, 'Resume happens before download completes');
+    audio.play('press'); audio.update(moving);
+    assert.equal(context.sources.length, 0);
+    if (action === 'mute') await audio.setEnabled(false); else audio.dispose();
+    resolve(makeBank(context)); await enabling;
+    assert.equal(audio.enabled, false); assert.equal(context.sources.length, 0);
+    audio.dispose();
+  }
+});
+
+test('failed recording downloads recover on the next enable, including failure after mute', async () => {
+  for (const mute of [false, true]) {
+    let reject!: (reason: Error) => void, attempts = 0;
+    const { audio, context } = audioFixture(1, 'putty', async ctx => {
+      attempts++;
+      if (attempts === 1) return new Promise((_resolve, fail) => { reject = fail; });
+      return makeBank(ctx as unknown as FakeContext);
+    });
+    const enabling = audio.setEnabled(true);
+    if (mute) await audio.setEnabled(false);
+    reject(new Error('Network lost'));
+    if (mute) await enabling; else await assert.rejects(enabling, /Network lost/);
+    assert.equal(audio.enabled, false);
+    await audio.setEnabled(true); audio.play('press');
+    assert.equal(audio.enabled, true); assert.equal(attempts, 2); assert.equal(context.activeSources.length, 1);
+    audio.dispose();
+  }
+});
 
 test('putty accents and rubbing remain quiet, reuse the gesture voice, and clean up after rapid input',async()=>{
   const {audio,context}=audioFixture(0.48,'putty');
@@ -148,7 +202,7 @@ test('putty accents and rubbing remain quiet, reuse the gesture voice, and clean
   for(let i=0;i<100;i++) {
     audio.play(i%2?'release':'press');audio.update(moving);
     assert.ok(audio.diagnostics().transientVoices<=3);
-    assert.ok(context.activeSources.length<=8);
+    assert.ok(context.activeSources.length<=4);
     assert.equal(context.masterConnections.length,1);
     context.advance(0.025);
   }
@@ -194,7 +248,7 @@ test('one gesture voice is reused during continuous motion and stops when still'
   try {
     await audio.setEnabled(true);
     audio.update(moving);
-    assert.equal(context.activeSources.length, 2, 'The gesture should share one tone and one noise source');
+    assert.equal(context.activeSources.length, 1, 'Movement uses one recorded texture');
     const sourcesCreated = context.sources.length, nodesCreated = context.nodes.length;
     for (let frame = 0; frame < 240; frame++) {
       context.advance(1 / 60);
@@ -210,7 +264,7 @@ test('one gesture voice is reused during continuous motion and stops when still'
     assert.equal(context.activeSources.length, 0, 'A stationary hold should fall silent');
     assert.equal(context.connectedNodes.length, 1, 'Stopped gesture nodes must disconnect from the master');
     audio.update(moving);
-    assert.equal(context.activeSources.length, 2, 'Movement should restart a single gesture voice');
+    assert.equal(context.activeSources.length, 1, 'Movement should restart a single gesture voice');
     audio.update(still);
     context.advance(2); audio.update(still); context.advance(1);
     assert.equal(context.activeSources.length, 0, 'Releasing all contacts should stop the gesture');
@@ -228,7 +282,7 @@ test('per-kind cooldown preserves an immediate release while transient groups st
     assert.equal(audio.diagnostics().transientVoices, 1, 'Repeated presses at the same instant must be suppressed');
     audio.play('release');
     assert.equal(audio.diagnostics().transientVoices, 2, 'A tap must still get its release accent');
-    assert.equal(context.activeSources.length, 6, 'Each transient owns two tones and a noise source');
+    assert.equal(context.activeSources.length, 2, 'Each accent uses one recording');
     context.advance(0.081); audio.play('press');
     assert.equal(audio.diagnostics().transientVoices, 3);
     const allocated = context.sources.length;
@@ -238,10 +292,10 @@ test('per-kind cooldown preserves an immediate release while transient groups st
     assert.equal(context.sources.length, allocated, 'Rapid input must not create silent extra source graphs');
     audio.update(moving);
     assert.equal(audio.diagnostics().gestureActive, true);
-    assert.equal(context.activeSources.length, 11, 'One gesture pair can coexist with the three bounded accents');
+    assert.equal(context.activeSources.length, 4, 'One texture can coexist with three bounded accents');
     context.advance(1);
     assert.equal(audio.diagnostics().transientVoices, 0);
-    assert.equal(context.activeSources.length, 2);
+    assert.equal(context.activeSources.length, 1);
     assert.ok(context.sources.slice(0, allocated).every(source => source.ended && source.outputs.size === 0));
     audio.update(still); context.advance(0.1);
     assert.equal(context.connectedNodes.length, 1, 'Ended voices must leave only the master connected');
@@ -250,26 +304,23 @@ test('per-kind cooldown preserves an immediate release while transient groups st
   } finally { audio.dispose(); context.advance(1); }
 });
 
-test('pop is a short low thump and filtered snap at the existing master level', async () => {
+test('pop uses a recorded snap with fades, bounded gain, and no oscillators', async () => {
   const { audio, context } = audioFixture();
   try {
     await audio.setEnabled(true);
     audio.play('pop', 1);
     assert.equal(audio.diagnostics().transientVoices, 1);
-    assert.equal(context.activeSources.length, 2);
-    const tone = context.sources.find(source => source.kind === 'oscillator')!;
-    const texture = context.sources.find(source => source.kind === 'buffer source')!;
-    assert.equal(tone.type, 'sine');
-    assert.ok(tone.frequency.values[0] < 200 && tone.frequency.values.at(-1)! < 70);
-    assert.ok(tone.stopAt > 0.15 && tone.stopAt <= 0.25);
-    assert.equal(texture.loop, false);
-    assert.equal((context.masterConnections[0] as FakeGain).gain.value, 0.26);
-    const filter = context.nodes.find(node => node instanceof FakeFilter) as FakeFilter;
-    assert.equal(filter.type, 'bandpass');
-    assert.ok(filter.frequency.values[0] > 1500 && filter.frequency.values.at(-1)! < 500);
-    context.advance(0.3);
+    assert.equal(context.activeSources.length, 1);
+    const source = context.activeSources[0];
+    assert.equal(source.kind, 'buffer source');
+    assert.ok(source.buffer);
+    assert.equal(source.loop, false);
+    assert.ok(source.stopAt > .1 && source.stopAt < .2);
+    assert.equal((context.masterConnections[0] as FakeGain).gain.value, .48);
+    const envelope = context.nodes.filter(node => node instanceof FakeGain).at(-1) as FakeGain;
+    assert.equal(envelope.gain.values.at(-1), 0, 'Recording fades to silence');
+    context.advance(.6);
     assert.equal(context.activeSources.length, 0);
-    assert.equal(audio.diagnostics().transientVoices, 0);
     assert.equal(context.connectedNodes.length, 1);
   } finally { audio.dispose(); }
 });
@@ -281,18 +332,18 @@ test('stop followed by pop waits for one fading slot instead of losing the sound
     audio.play('press'); audio.play('release');
     context.advance(0.081); audio.play('press'); audio.update(moving);
     assert.equal(audio.diagnostics().transientVoices, 3);
-    assert.equal(context.activeSources.length, 11);
+    assert.equal(context.activeSources.length, 4);
     audio.stop(); audio.play('pop');
     const before = context.sources.length;
     assert.equal(audio.diagnostics().transientVoices, 3);
     context.advance(0.024);
     assert.equal(context.sources.length, before, 'Do not allocate a fourth transient during the fade');
     context.advance(0.002);
-    assert.equal(context.sources.length, before + 2, 'The pending pop must take the newly freed slot');
+    assert.equal(context.sources.length, before + 1, 'The pending pop must take the newly freed slot');
     assert.equal(audio.diagnostics().transientVoices, 1);
-    assert.equal(context.activeSources.length, 2);
+    assert.equal(context.activeSources.length, 1);
     assert.equal(audio.diagnostics().gestureActive, false);
-    context.advance(0.3);
+    context.advance(0.6);
     assert.equal(context.activeSources.length, 0);
     assert.equal(context.connectedNodes.length, 1);
   } finally { audio.dispose(); context.advance(1); }
@@ -305,16 +356,16 @@ test('a full-cap pop fades the oldest accent and its own cooldown survives stop 
     audio.play('press'); audio.play('release'); context.advance(0.081); audio.play('press');
     audio.play('pop');
     for (let i = 0; i < 100; i++) audio.play('pop');
-    assert.equal(context.sources.length, 9);
+    assert.equal(context.sources.length, 3);
     context.advance(0.026);
     assert.equal(audio.diagnostics().transientVoices, 3);
-    assert.equal(context.activeSources.length, 8, 'Two ordinary accents and one two-source pop stay within the three-group cap');
-    assert.ok(context.sources.slice(0, 3).every(source => source.ended && source.outputs.size === 0));
-    assert.equal(context.sources.length, 11);
+    assert.equal(context.activeSources.length, 3, 'Two accents and a pop stay within the cap');
+    assert.ok(context.sources.slice(0, 1).every(source => source.ended && source.outputs.size === 0));
+    assert.equal(context.sources.length, 4);
     context.advance(0.1); audio.stop(); audio.play('pop');
-    assert.equal(context.sources.length, 11, 'Stopping must not bypass the pop cooldown');
+    assert.equal(context.sources.length, 4, 'Stopping must not bypass the pop cooldown');
     context.advance(0.225); audio.play('pop');
-    assert.equal(context.sources.length, 13, 'A new pop is allowed after 0.35 seconds');
+    assert.equal(context.sources.length, 5, 'A new pop is allowed after 0.35 seconds');
     assert.equal(audio.diagnostics().transientVoices, 1);
   } finally { audio.dispose(); context.advance(1); }
 });
@@ -330,7 +381,7 @@ test('stop, mute, and disposal cancel a queued pop before a fading voice ends', 
       else if (action === 'mute') await audio.setEnabled(false);
       else audio.dispose();
       context.advance(1);
-      assert.equal(context.sources.length, 9, `${action} must prevent the queued pop from allocating sources`);
+      assert.equal(context.sources.length, 3, `${action} must prevent the queued pop from allocating sources`);
       assert.equal(context.activeSources.length, 0);
       assert.equal(audio.diagnostics().transientVoices, 0);
       assert.equal(context.connectedNodes.length, action === 'dispose' ? 0 : 1);
@@ -359,7 +410,7 @@ test('stop and mute disconnect active sources and permit a clean later restart',
     audio.update(moving); audio.play('release');
     assert.equal(context.sources.length, sourceCount);
     await audio.setEnabled(true); audio.update(moving);
-    assert.equal(context.activeSources.length, 2);
+    assert.equal(context.activeSources.length, 1);
   } finally { audio.dispose(); context.advance(1); }
   assert.equal(context.connectedNodes.length, 0);
   assert.equal(context.activeSources.length, 0);

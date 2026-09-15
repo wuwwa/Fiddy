@@ -85,7 +85,7 @@ export class SoftBodyPhysics {
       // This is the same volume-preserving pressure/twist map used by deform(),
       // expressed directly here to avoid temporary frame and point objects.
       const height=y-FLOOR,frequency=Math.PI;
-      const width=1/Math.sqrt(1-this.compression+0.16*this.compression*Math.cos(height*frequency));
+      const width=(1-this.compression+0.16*this.compression*Math.cos(height*frequency))**(-0.5*(this.feel.foam?.lateralExpansion ?? 1));
       const angle=this.twist*twistWeight(y),cos=Math.cos(angle),sin=Math.sin(angle);
       const point=this.strainPoint;
       point.x=(x*cos+z*sin)*width;
@@ -121,7 +121,7 @@ export class SoftBodyPhysics {
     return true;
   }
 
-  toMaterialPoint(point:Point) { return undoDeformation(point,this.compression,this.twist); }
+  toMaterialPoint(point:Point) { return undoDeformation(point,this.compression,this.twist,this.feel.foam?.lateralExpansion); }
 
   constructor(readonly feel: SoftBodyFeel = jellyProfile.feel) {
     this.kneading=feel.kneading?new KneadingMemory(COUNT,feel.kneading.workRate):null;
@@ -197,7 +197,7 @@ export class SoftBodyPhysics {
         y+=this.renderOffsets[j+1]*weight;
         z+=this.renderOffsets[j+2]*weight;
       }
-      const pressure=pressureFrame(rest[v*3+1]+y,compression);
+      const pressure=pressureFrame(rest[v*3+1]+y,compression,this.feel.foam?.lateralExpansion);
       const angle=twist*twistWeight(rest[v*3+1]+y),cos=Math.cos(angle),sin=Math.sin(angle);
       const px=rest[v*3]+x,pz=rest[v*3+2]+z;
       output[v*3]=(px*cos+pz*sin)*pressure.width;
@@ -288,7 +288,7 @@ export class SoftBodyPhysics {
   release(id=0, preserveMovement=true) {
     const grab=this.grabs.get(id);
     if(!grab) return;
-    if(preserveMovement && !this.feel.kneading) this.finishMovement(grab,id);
+    if(preserveMovement && !this.feel.kneading && !this.feel.foam) this.finishMovement(grab,id);
     for(let i=0;i<this.strainContacts.length;i++) if(this.strainContacts[i]===grab) {this.strainContacts.splice(i,1);break;}
     this.grabs.delete(id);
     this.dentDepth=0;
@@ -334,7 +334,7 @@ export class SoftBodyPhysics {
 
   /** Shared legal contact offset, for both held motion and its final sample. */
   private grabOffset(g:Grab,target:Point):Point {
-    const frame=pressureFrame(g.localAnchor.y,this.compression);
+    const frame=pressureFrame(g.localAnchor.y,this.compression,this.feel.foam?.lateralExpansion);
     const desired=this.toMaterialPoint({x:g.anchor.x+target.x-g.normal.x*g.dentDepth,
       y:Math.max(FLOOR+0.005,frame.y+target.y-g.normal.y*g.dentDepth),
       z:g.anchor.z+target.z-g.normal.z*g.dentDepth});
@@ -408,7 +408,7 @@ export class SoftBodyPhysics {
       verticalPressure=Math.max(verticalPressure,g.verticalLoad*g.pressure);
       // The strongest top contact controls the common volume-preserving squash;
       // each finger still contributes its own local indentation and pull.
-      target=Math.max(target,Math.min(0.54,g.verticalLoad*g.pressure*(this.feel.pressDepth+
+      target=Math.max(target,Math.min(this.feel.foam?.maxCompression ?? 0.54,g.verticalLoad*g.pressure*(this.feel.pressDepth+
         (this.feel.holdDepth-this.feel.pressDepth)*creep)));
       g.dentDepth=g.pressure*((this.feel.dentDepth+
         (this.feel.holdDentDepth-this.feel.dentDepth)*creep)*(1-g.verticalLoad)+
@@ -435,8 +435,9 @@ export class SoftBodyPhysics {
       pressFriction;
     this.compressionVelocity += ((target-this.compression)*spring-this.compressionVelocity*friction)*dt;
     this.compression += this.compressionVelocity*dt;
-    if (this.compression > 0.58 || this.compression < -0.16) {
-      this.compression = Math.max(-0.16, Math.min(0.58, this.compression));
+    const maxCompression=this.feel.foam?.maxCompression ?? 0.58;
+    if (this.compression > maxCompression || this.compression < -0.16) {
+      this.compression = Math.max(-0.16, Math.min(maxCompression, this.compression));
       this.compressionVelocity = 0;
     }
     // Opposed torques cancel; fingers turning in the same direction combine.
@@ -453,6 +454,16 @@ export class SoftBodyPhysics {
     if(Math.abs(this.twist)>0.8) {this.twist=Math.sign(this.twist)*0.8;this.twistVelocity=0;}
     const p = this.positions, v = this.velocities;
     this.previous.set(p);
+    if(this.feel.foam && !this.grabs.size) {
+      // Foam's local dents retain their shape on release, then relax without
+      // the elastic cage kicking them back. Global compression recovers above.
+      const recovery=Math.exp(-dt/this.feel.foam.recoveryTime);
+      for(let j=0;j<p.length;j++) {
+        p[j]=this.rest[j]+(p[j]-this.rest[j])*recovery;
+        v[j]=(p[j]-this.previous[j])/dt;
+      }
+      return;
+    }
     for(const g of this.grabs.values()) {
       const follow=1-Math.exp(-dt*(this.feel.kneading?(this.feel.kneading.followRate+7.8*g.folding):38));
       // Keep the touched patch under the pointer as the rest of the body
@@ -512,10 +523,10 @@ export class SoftBodyPhysics {
     // yields against the material instead of stretching the cage without bound.
     const tension=1+Math.max(0,pullLoad-2)*5;
     const edgeAlpha = this.feel.edgeCompliance*(1+10*this.pullRelaxation/tension) / (dt*dt);
-    const volumeAlpha = (0.00000025-0.000000235*pulling) / (dt*dt);
+    const volumeAlpha = (this.feel.foam?.volumeCompliance ?? (0.00000025-0.000000235*pulling)) / (dt*dt);
     for(const g of this.grabs.values()) g.contactLambda.fill(0);
     const contacts=[...this.grabs.values()];
-    const iterations=(pulling>0.1?8:4)+Math.max(0,contacts.length-1)*2;
+    const iterations=(pulling>0.1 || this.feel.foam?8:4)+Math.max(0,contacts.length-1)*2;
     for (let iteration = 0; iteration < iterations; iteration++) {
       for (const e of this.edges) {
         const a = e.a*3, b = e.b*3;
@@ -563,10 +574,17 @@ export class SoftBodyPhysics {
         g[6]=(cy*az-cz*ay)/6; g[7]=(cz*ax-cx*az)/6; g[8]=(cx*ay-cy*ax)/6;
         g[9]=(ay*bz-az*by)/6; g[10]=(az*bx-ax*bz)/6; g[11]=(ax*by-ay*bx)/6;
         for (let k=0;k<3;k++) g[k]=-g[3+k]-g[6+k]-g[9+k];
-        let denominator=volumeAlpha;
-        for(let n=0;n<4;n++) denominator+=this.invMass[t.ids[n]]*(g[n*3]**2+g[n*3+1]**2+g[n*3+2]**2);
         const current=(ax*g[3]+ay*g[4]+az*g[5]);
-        const dl=(-(current-t.volume)-volumeAlpha*t.lambda)/denominator;
+        // Air can leave foam, but its cells cannot turn inside out. Activate
+        // a hard minimum-volume constraint only near collapse; ordinary
+        // compression still uses the soft, compressible volume constraint.
+        const barrier=!!this.feel.foam && current<t.volume*0.2;
+        const alpha=barrier?0:volumeAlpha;
+        const targetVolume=barrier?t.volume*0.2:t.volume;
+        if(barrier)t.lambda=0;
+        let denominator=alpha;
+        for(let n=0;n<4;n++) denominator+=this.invMass[t.ids[n]]*(g[n*3]**2+g[n*3+1]**2+g[n*3+2]**2);
+        const dl=(-(current-targetVolume)-alpha*t.lambda)/denominator;
         t.lambda+=dl;
         for(let n=0;n<4;n++) for(let k=0;k<3;k++) p[t.ids[n]*3+k]+=this.invMass[t.ids[n]]*g[n*3+k]*dl;
       }

@@ -6,8 +6,7 @@ The hold, drag, and release mechanics suit a touchscreen. The main problems were
 
 - Touch targets are at least 48 CSS pixels on phones and touch-capable devices, including sound, angle, zoom, palette, and drawing controls. The Shapes speed slider has a 48-pixel interaction area and a 28-pixel thumb.
 - The phone toolbar uses a shorter Toys label, larger icons, and safe-area spacing. Navigation controls allow normal browser panning and pinch zoom; the play canvas retains its gesture ownership.
-- Every toy has an optional How to play sheet with specific gestures. It pauses play, supports dismissal and focus return, and keeps its return button visible while the instructions scroll.
-- Visible soft-toy hints introduce one-finger holding and dragging. Two-finger gestures are explained in the guide.
+- Visible soft-toy hints introduce one-finger holding and dragging.
 - Shapes and Swirl use the shared collection for mobile navigation. Their secondary controls sit around the artwork. Short landscape layouts and the drawing editor receive separate arrangements.
 - The previous long-press selection suppression remains in place. Collection cards still scroll normally.
 

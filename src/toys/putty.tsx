@@ -9,7 +9,7 @@ function PuttyIcon() {
 }
 
 export const putty:ToyDefinition={
-  id:'putty', name:'Putty',
+  id:'putty', preview: '/previews/putty.webp', name:'Putty',
   description:'Warm, dense putty. Hold a dent or pull a fold; it remembers your touch.',
   icon:PuttyIcon,
   theme:{background:'#f2e8df',foreground:'#614638',accent:'#a16a4f',muted:'#947a6b',surface:'#fff9f3',border:'#dec8b8'},

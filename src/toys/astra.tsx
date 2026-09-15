@@ -17,11 +17,11 @@ const copy = {
   keyboardHint: <><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> rotate <span>·</span> <kbd>Q</kbd><kbd>E</kbd> roll <span>·</span> <kbd>space</kbd> pause</>,
 };
 export const astraSwirl: ToyDefinition = {
-  id: 'astra-swirl', name: 'Swirl', description: 'An inward spiral of starlight. Turn it in your hands.',
+  id: 'astra-swirl', preview: '/previews/astra-swirl.webp', name: 'Swirl', description: 'An inward spiral of starlight. Turn it in your hands.',
   icon: SwirlIcon, theme, copy, load: () => import('../astra/swirl'),
 };
 export const astraCursor: ToyDefinition = {
-  id: 'astra-cursor', name: 'Shapes', description: 'Draw an outline or choose a shape. Watch starlight flow around it.',
+  id: 'astra-cursor', preview: '/previews/astra-cursor.webp', name: 'Shapes', description: 'Draw an outline or choose a shape. Watch starlight flow around it.',
   icon: CursorIcon, theme, copy: { ...copy, touchGuide: [...copy.touchGuide,
     {gesture:'Make it yours',description:'Choose an outline or tap Draw a shape. Sketch with your finger, then tap Animate drawing.'},
     {gesture:'Set the pace',description:'Drag the Flow speed slider to slow down or speed up the stars.'},

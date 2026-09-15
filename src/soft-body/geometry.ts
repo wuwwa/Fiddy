@@ -3,13 +3,14 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FLOOR } from './physics';
 import type { SoftToyShape } from './profiles';
 
-export function createSoftGeometry(shape: SoftToyShape) {
+export function createSoftGeometry(shape: SoftToyShape, detail = 31) {
+  if(shape==='butter') return createButter(detail);
   if(shape==='dough') return createDough();
   if(shape==='loop') return createLoop();
-  if(shape==='star' || shape==='dumpling') return createSculptedShape(shape);
+  if(shape==='star' || shape==='dumpling') return createSculptedShape(shape, detail);
   // Uniform triangles avoid pinched poles. A smooth implicit superellipsoid
   // replaces signed coordinate powers, whose slopes jumped across the axes.
-  const surface=new THREE.IcosahedronGeometry(1,31);
+  const surface=new THREE.IcosahedronGeometry(1,detail);
   const position=surface.getAttribute('position');
   const jelly=shape==='pebble';
   const putty=shape==='putty';
@@ -28,6 +29,28 @@ export function createSoftGeometry(shape: SoftToyShape) {
       FLOOR+y,x*Math.sin(angle)+z*Math.cos(angle));
   }
   return finishSurface(surface);
+}
+
+/** Flat faces and small rounded edges keep this a stick, even at rest. */
+function createButter(detail:number) {
+  const radius=0.095, half=[1.25,0.45,0.475];
+  const segments=Math.max(8,Math.round(detail));
+  const surface=new THREE.BoxGeometry(half[0]*2,half[1]*2,half[2]*2,segments*2,segments,segments);
+  const position=surface.getAttribute('position');
+  const angle=-0.22,cos=Math.cos(angle),sin=Math.sin(angle);
+  for(let i=0;i<position.count;i++) {
+    const point=[position.getX(i),position.getY(i),position.getZ(i)];
+    const inner=point.map((v,k)=>THREE.MathUtils.clamp(v,-half[k]+radius,half[k]-radius));
+    const delta=point.map((v,k)=>v-inner[k]);
+    const length=Math.hypot(...delta);
+    const [x,rawY,z]=inner.map((v,k)=>v+delta[k]/length*radius);
+    // Three shallow portion marks are molded into the top and deform with it.
+    const top=THREE.MathUtils.smoothstep(rawY,0.34,0.44);
+    const marks=[-0.625,0,0.625].reduce((sum,mark)=>sum+Math.exp(-(((x-mark)/0.018)**2)),0);
+    const y=rawY-0.012*marks*top*Math.exp(-((z/0.41)**8));
+    position.setXYZ(i,x*cos-z*sin,y,x*sin+z*cos);
+  }
+  return restOnFloor(surface);
 }
 
 function createDough() {
@@ -82,8 +105,8 @@ function createLoop() {
 }
 
 /** Rounded lobes and pleats are part of the mesh, so they move with the skin. */
-function createSculptedShape(shape:'star'|'dumpling') {
-  const surface=new THREE.IcosahedronGeometry(1,31);
+function createSculptedShape(shape:'star'|'dumpling', detail = 31) {
+  const surface=new THREE.IcosahedronGeometry(1,detail);
   const position=surface.getAttribute('position');
   for(let i=0;i<position.count;i++) {
     const nx=position.getX(i),ny=position.getY(i),nz=position.getZ(i);

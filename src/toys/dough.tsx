@@ -9,7 +9,7 @@ function DoughIcon() {
 }
 
 export const dough:ToyDefinition={
-  id:'dough',name:'Dough',icon:DoughIcon,
+  id:'dough', preview: '/previews/dough.webp',name:'Dough',icon:DoughIcon,
   description:'Lean in. Push a heavy fold through, then work it back. Flour blends with every knead.',
   theme:{background:'#ede5d8',foreground:'#594b38',accent:'#97764e',muted:'#8b7b65',surface:'#faf5e9',border:'#d6c8b0'},
   copy:{

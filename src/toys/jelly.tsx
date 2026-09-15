@@ -1,5 +1,6 @@
 import type { ToyDefinition } from './types';
 import { softBodyControls } from './soft-body-copy';
+import { freePlay } from './free-play';
 
 function JellyIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -10,8 +11,10 @@ function JellyIcon() {
 
 /** Lightweight metadata; the simulation is imported only when selected. */
 export const jelly: ToyDefinition = {
-  id: 'jelly', name: 'Jelly',
-  description: 'A delicate gel that stretches, yields, and recovers.',
+  primaryMode: 'free',
+  freePlay: freePlay('jelly'),
+  id: 'jelly', preview: '/previews/jelly.webp', name: 'Jelly',
+  description: 'A wobbly gel with a lively bounce and a soft landing.',
   icon: JellyIcon,
   theme: {
     background: '#f6e3e7', foreground: '#572333', accent: '#a93a59',

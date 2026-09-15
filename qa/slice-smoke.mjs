@@ -81,6 +81,7 @@ try {
   await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1100, height: 800, deviceScaleFactor: 1, mobile: false });
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__sliceAudio=[];const AC=window.AudioContext;window.AudioContext=class extends AC{constructor(...a){super(...a);window.__sliceAudio.push(this)}};` });
+  if (!process.argv.includes('--audio-only')) {
   for (const toy of ['jelly-slice', 'jelly-prism']) {
     await send('Page.navigate', {url:`${origin}/?toy=${toy}`});
     await waitFor(s=>s?.knife?.canCut, `${toy} ready`);await delay(200);
@@ -220,6 +221,12 @@ try {
   assert.deepEqual(performanceResult.many.versions,performanceResult.many.versionsAfter);
   record(kind+': one versus 48 pieces, fixed draw count and zero animated surface uploads',performanceResult);
   }
+  } else {
+    await send('Page.navigate', { url: `${origin}/?toy=jelly-slice` });
+    await waitFor(s => s?.knife?.canCut, 'Audio test page ready');
+    await click('button[aria-label^="Enable "]');
+    await waitFor(s => s.audio.enabled, 'Audio test user activation');
+  }
   const voiceResult=await evaluate(`(async()=>{
     const {SliceAudio}=await import('/src/slicing/audio.ts'),ctx=new AudioContext(),connected=new Set();let peak=0;
     const adapter=new Proxy(ctx,{get(target,key){if(key==='createBufferSource')return()=>{const s=ctx.createBufferSource(),connect=s.connect.bind(s),disconnect=s.disconnect.bind(s);s.connect=(...a)=>{connected.add(s);peak=Math.max(peak,connected.size);return connect(...a);};s.disconnect=(...a)=>{connected.delete(s);return disconnect(...a);};return s;};const v=Reflect.get(target,key,target);return typeof v==='function'?v.bind(target):v;}});
@@ -248,20 +255,47 @@ try {
     tag(0,'RIFF');header.setUint32(4,pcm.length-8,true);tag(8,'WAVE');tag(12,'fmt ');header.setUint32(16,16,true);header.setUint16(20,1,true);header.setUint16(22,2,true);header.setUint32(24,48000,true);header.setUint32(28,192000,true);header.setUint16(32,4,true);header.setUint16(34,16,true);tag(36,'data');header.setUint32(40,data.length*4,true);
     for(let i=0;i<data.length;i++){header.setInt16(44+i*4,Math.round(Math.max(-1,Math.min(1,data[i]))*32767),true);header.setInt16(46+i*4,Math.round(Math.max(-1,Math.min(1,right[i]))*32767),true);}
     let binary='';for(let i=0;i<pcm.length;i+=8192)binary+=String.fromCharCode(...pcm.subarray(i,i+8192));
-    // DFT of the actual exit: the audible weight should be low and the finish
-    // should stand above the quiet pull, not become a continuous pitched scrape.
+    // Record the exit spectrum for inspection; natural foley is broadband,
+    // so it no longer needs to match the old sub-bass oscillator.
     const n=8192,start=Math.round(3.4*48000),power=[];
     for(let bin=1;bin<=340;bin++){let re=0,im=0;for(let i=0;i<n;i++){const v=data[start+i]*(.5-.5*Math.cos(2*Math.PI*i/(n-1))),phase=2*Math.PI*bin*i/n;re+=v*Math.cos(phase);im-=v*Math.sin(phase);}power.push({hz:bin*48000/n,energy:re*re+im*im});}
     const energy=power.reduce((s,p)=>s+p.energy,0),bass=power.filter(p=>p.hz<600).reduce((s,p)=>s+p.energy,0);
     const dominantHz=power.reduce((a,b)=>b.energy>a.energy?b:a).hz;
     const result={before:rms(0,.18),windows,release:rms(3.42,3.58),settled:rms(3.9,4.05),muted:rms(4.7,4.9),peak:data.reduce((a,b)=>Math.max(a,Math.abs(b)),0),stereoDifference:Math.sqrt(stereo/96000),lowFrequencyShare:bass/energy,dominantHz,wav:btoa(binary)};audio.dispose();return result;
   })()`);
-  await writeFile(join(artifacts,'wire-plop-preview.wav'),Buffer.from(audioResult.wav,'base64'));delete audioResult.wav;
+  await writeFile(join(artifacts,'recorded-slice-preview.wav'),Buffer.from(audioResult.wav,'base64'));delete audioResult.wav;
   assert.ok(audioResult.before<.00001&&audioResult.muted<.00001&&audioResult.peak<.7,'Silent when inactive, with headroom');
-  assert.ok(audioResult.windows.every(n=>n>.0003&&n<audioResult.release/5),'The pull should remain quiet beneath the plop');
-  assert.ok(audioResult.release>.025&&audioResult.settled<.001,'A distinct short plop, with no ringing tail');
-  assert.ok(audioResult.lowFrequencyShare>.95&&audioResult.dominantHz<180,'The plop should have low-pitched weight');
-  record('Quiet pull followed by one short bass plop',audioResult);
+  assert.ok(audioResult.windows.every(n=>n>.0001&&n<audioResult.release),'Recorded resistance stays audible and quieter than the exit');
+  assert.ok(audioResult.release>.006&&audioResult.settled<.001,'A clear recorded exit with a quiet tail');
+  record('Dry knife friction and exit have headroom and settle to silence',audioResult);
+  for (const material of ['gel', 'putty', 'cloth', 'foam', 'rubber', 'star', 'dumpling', 'dough']) {
+    const rendered = await evaluate(`(async () => {
+      const { SoftBodyAudio } = await import('/src/soft-body/audio.ts');
+      const offline = new OfflineAudioContext(1, 48000 * 3, 48000); let now = 0;
+      const adapter = new Proxy(offline, { get(target, key) {
+        if (key === 'resume' || key === 'close') return async () => {};
+        if (key === 'currentTime') return now;
+        if (key === 'state') return 'running';
+        const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value;
+      }});
+      const audio = new SoftBodyAudio(1, () => adapter, ${JSON.stringify(material)});
+      await audio.setEnabled(true);
+      now = .2; audio.play('press', .8);
+      for (let t = .7; t < 1.2; t += 1 / 60) {
+        now = t; audio.update({ contacts: 2, compression: .5, stretch: .6, motion: .6, twist: .2 });
+      }
+      now = 1.2; audio.update({ contacts: 0, compression: 0, stretch: 0, motion: 0, twist: 0 }); audio.play('release', .7);
+      now = 1.9; await audio.setEnabled(false);
+      const output = await offline.startRendering(), data = output.getChannelData(0);
+      const rms = (a, b) => Math.sqrt(data.slice(a * 48000, b * 48000).reduce((s, x) => s + x*x, 0) / ((b-a)*48000));
+      const result = { before: rms(0, .18), contact: rms(.22, .5), motion: rms(.8, 1.1), muted: rms(2.2, 2.8), peak: data.reduce((p, x) => Math.max(p, Math.abs(x)), 0) };
+      audio.dispose(); return result;
+    })()`);
+    record(material + ': decoded foley signal measurements', rendered);
+    assert.ok(rendered.before < .00001 && rendered.muted < .00001, material + ': silence before interaction and after mute');
+    assert.ok(rendered.contact > .0003 && rendered.motion > .0001, material + ': actual recordings reach the output');
+    assert.ok(rendered.peak < .5, material + ': peak headroom');
+  }
   assert.equal(errors.length,0,JSON.stringify(errors));record('passed',{errors});
 } catch (error) {
   console.error(error); process.exitCode = 1;

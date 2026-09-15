@@ -1,5 +1,6 @@
 import type { ToyDefinition } from './types';
 import { softBodyControls } from './soft-body-copy';
+import { freePlay } from './free-play';
 
 function DumplingIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -9,8 +10,10 @@ function DumplingIcon() {
 }
 
 export const dumpling: ToyDefinition = {
-  id: 'dumpling', name: 'Dumpling',
-  description: 'A dense, doughy bun with a slow return.',
+  primaryMode: 'free',
+  freePlay: freePlay('dumpling'),
+  id: 'dumpling', preview: '/previews/dumpling.webp', name: 'Dumpling',
+  description: 'A doughy little bundle with a soft, heavy plop.',
   icon: DumplingIcon,
   theme: {
     background: '#f3e8db', foreground: '#594331', accent: '#8e5d3a',

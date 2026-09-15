@@ -31,7 +31,7 @@ const state=()=>evaluate(`(()=>{
   const rect=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
   const dialog=document.querySelector('dialog'),canvas=document.querySelector('canvas'),list=document.querySelector('.collection-list');
   return {url:location.href,title:document.title,documentId:window.__qaDocument,toy:document.querySelector('[data-toy-id]')?.dataset.toyId,
-    ready:!!document.querySelector('.toy-player.is-ready'),width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,
+    mode:document.querySelector('[data-toy-mode]')?.dataset.toyMode, modeSwitch:!!document.querySelector('.mode-switch'), ready:!!document.querySelector('.toy-player.is-ready'),width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,
     stage:document.querySelector('.toy')?rect(document.querySelector('.toy')):null,
     masthead:document.querySelector('.masthead')?rect(document.querySelector('.masthead')):null,
     dock:document.querySelector('.interaction-dock')?rect(document.querySelector('.interaction-dock')):null,
@@ -91,7 +91,8 @@ try {
   await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
   await viewport(1440,900);
   await send('Page.navigate',{url:`${origin}/?toy=switchboard&renderer=webgl&qa=keep#controls`});
-  let data=await waitFor(data=>data.ready && data.diagnostics?.entrance>=0.95,'Initial toy readiness');
+  let data=await waitFor(data=>data.ready && data.diagnostics?.frames>2,'Initial toy readiness');
+  assert.equal(data.mode, 'free'); assert.equal(data.modeSwitch, false);
   const documentId=data.documentId;
   record('unknown route',{...data,screenshot:await screenshot('desktop')});
   if(!baseline){assert.equal(new URL(data.url).searchParams.get('toy'),'jelly');assert.equal(new URL(data.url).searchParams.get('renderer'),'webgl');assert.equal(new URL(data.url).searchParams.get('qa'),'keep');assert.equal(new URL(data.url).hash,'#controls');}
@@ -116,6 +117,7 @@ try {
     await click('.collection-trigger');await waitFor(data=>data.dialog.open,'Collection did not reopen');
     await click(`.collection-item[href*="toy=${toy}"]`);
     data=await waitFor(data=>data.toy===toy && data.ready && !data.dialog.open && data.diagnostics?.entrance>=0.95,`${toy} selection`);
+    assert.equal(data.mode, 'resting'); assert.equal(data.modeSwitch, false);
     assert.equal(data.documentId,documentId,'The document reloaded while selecting a toy');
     assert.equal(data.controls.find(control=>control.pressed!==null).pressed,'true','Sound preference did not follow selection');
     assert.equal(new URL(data.url).searchParams.get('renderer'),'webgl');
@@ -140,12 +142,12 @@ try {
     await click('.collection-trigger');await waitFor(data=>data.dialog.open,'Collection did not reopen');
     assert.equal((await state()).focus.className,'close-collection');
     const cards=(await state()).cards;
-    for(let i=0;i<cards.length;i++)await key('Tab','Tab',9);
+    for(let i=0;i<cards.length*2-1;i++)await key('Tab','Tab',9);
     data=await state();const last=data.cards.at(-1);
     assert.equal(data.focus.href,last.href,'Keyboard focus did not reach the final toy');
     assert.ok(last.y>=data.dialog.list.y && last.bottom<=data.dialog.list.bottom,'The focused final card must stay fully visible below the header');
     record('last collection card focused',{...data,screenshot:await screenshot('last-card-focused')});
-    await click('.collection-item:last-child');
+    await click('.collection-card:last-child .collection-item');
     const lastId=new URL(last.href,origin).searchParams.get('toy');
     await waitFor(data=>data.toy===lastId && data.ready && !data.dialog.open,'The final card did not select by pointer');
     const back=await send('Page.getNavigationHistory');

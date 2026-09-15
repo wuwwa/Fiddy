@@ -1,23 +1,6 @@
 /* Shared browser UI: keep gestures on the canvas and navigation easy to tap. */
 .toy button,.toy a,.toy label{touch-action:manipulation}
-.guide-trigger{display:flex;align-items:center;justify-content:center;gap:8px;margin-left:auto;flex:none;min-height:44px;padding:0 14px;border-radius:24px;color:var(--toy-accent);font-size:13px}
-.guide-trigger svg{width:22px;height:22px}
 .collection-label-short{display:none}
-.play-guide{color:var(--toy-foreground);width:min(460px,calc(100% - 32px));max-height:calc(100svh - 32px);padding:26px;border-radius:28px;overflow:hidden}
-.play-guide[open]{display:flex;flex-direction:column;animation:panel-enter .22s ease-out}
-.play-guide::backdrop{background:#0b151545;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
-.guide-heading{flex:none;margin-bottom:20px}
-.guide-heading>span{font-size:13px;color:var(--toy-accent)}
-.guide-heading h2{font-size:26px;line-height:1.2;letter-spacing:-.6px;font-weight:500;margin:6px 0 0}
-.guide-gestures{list-style:none;margin:0;padding:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;min-height:0}
-.guide-gestures li+li{margin-top:20px}
-.guide-gestures strong{font-size:15px;font-weight:600}
-.guide-gestures p{font-size:14px;line-height:1.55;margin:5px 0 0}
-.guide-keyboard{font-size:12px;line-height:1.7;margin:18px 0 0;color:var(--toy-muted)}
-.guide-keyboard kbd{font:inherit}
-.guide-reset-note{flex:none;font-size:12px;margin:20px 0 16px;color:var(--toy-muted)}
-.guide-close{flex:none;border:0;background:var(--toy-accent);color:var(--toy-surface);border-radius:24px;min-height:48px;font-size:15px;font-weight:500}
-.guide-trigger:active,.guide-close:active{filter:brightness(.94)}
 .toy .sound-toggle[aria-pressed=true]{background:color-mix(in srgb,var(--toy-accent) 14%,transparent)}
 
 /* Targets are sized in CSS pixels, including on touch-capable tablets. */
@@ -47,10 +30,8 @@
 
 @media(max-width:700px),(pointer:coarse){
   .toy .masthead{gap:12px}
-  .toy .guide-trigger{width:48px;height:48px;padding:0}
-  .guide-trigger span{display:none}
   .toy .wordmark{font-size:clamp(21px,6vw,26px)}
-  .toy .toy-player[data-toy-id] .interaction-dock{width:calc(100% - 24px);max-width:440px;padding:0;bottom:max(16px,calc(env(safe-area-inset-bottom) + 10px))}
+  .toy .toy-player[data-toy-id] .interaction-dock{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));width:auto;max-width:none;transform:none;padding:0;bottom:max(16px,calc(env(safe-area-inset-bottom) + 10px))}
   .toy .control-cluster{gap:12px;max-width:100%}
   .toy .control-pill{padding:4px}
   .toy .toy-player[data-toy-id] .control-pill button{padding:0 14px}
@@ -64,14 +45,12 @@
   .toy .toy-player[data-toy-id] .instructions{max-width:100%;white-space:normal;justify-content:center;flex-wrap:wrap;gap:4px 14px;text-align:center;font-size:13px;line-height:1.5;margin-bottom:10px}
   .toy .instructions span+span::before{display:none}
   .toy .rotation-instructions{max-width:100%;white-space:normal;text-align:center;font-size:12px;line-height:1.5;margin:0 0 10px}
-  .toy .keyboard-hint,.guide-keyboard{display:none}
-  /* Keep the deliberately quiet Jelly/slicing views; Help exposes their gestures. */
+  .toy .keyboard-hint{display:none}
   .toy [data-desktop-instructions] :is(.instructions,.rotation-instructions){display:none}
-  .toy .collection-dialog{padding:18px;max-height:calc(88svh - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+  .toy .collection-dialog{padding:18px;max-height:calc(var(--app-sheet-height,88vh) - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
   .toy .collection-heading{margin-bottom:18px}
   .toy .collection-list{gap:12px}
   .toy .collection-count{margin-top:18px}
-  .play-guide{margin:auto 12px max(12px,env(safe-area-inset-bottom));width:calc(100% - 24px);max-height:calc(100svh - max(24px,env(safe-area-inset-top)) - env(safe-area-inset-bottom));padding:24px}
   /* Collection already provides navigation between Swirl and Shapes. */
   .toy .astra-switch{display:none}
   .toy .astra-shape-bar{top:calc(max(22px,env(safe-area-inset-top)) + 62px);gap:10px;width:max-content;max-width:calc(100% - 24px)}
@@ -79,7 +58,7 @@
   .toy .astra-shape-choice>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis}
   .toy .astra-shape-choice>span:last-child{margin-left:0}
   .toy .astra-draw-button{flex-shrink:0}
-  .toy .astra-presets{top:58px;max-height:calc(100svh - 240px);overflow:auto;overscroll-behavior:contain}
+  .toy .astra-presets{top:58px;max-height:calc(var(--app-height,100vh) - 240px);overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
   .toy .astra-motion-controls{left:50%;right:auto;transform:translateX(-50%);bottom:calc(max(16px,calc(env(safe-area-inset-bottom) + 10px)) + 70px);gap:10px}
   .toy .astra-motion-controls button:first-child{margin-right:0}
   .toy .astra-speed{left:50%;transform:translateX(-50%);width:min(240px,calc(100% - 48px));bottom:calc(max(16px,calc(env(safe-area-inset-bottom) + 10px)) + 128px);gap:2px 12px}
@@ -92,16 +71,14 @@
 }
 
 /* Short browser viewports need edge controls instead of a central stack. */
-@media(max-height:450px) and (min-width:480px){
+@media(max-height:450px) and (orientation:landscape){
   .toy .masthead{padding-top:max(10px,env(safe-area-inset-top))}
-  .toy .guide-trigger{width:48px;height:48px;padding:0}
-  .guide-trigger span{display:none}
   .toy .toy-player[data-toy-id] .interaction-dock{bottom:max(10px,calc(env(safe-area-inset-bottom) + 6px));padding:0}
   .toy .toy-player[data-toy-id] :is(.instructions,.rotation-instructions,.keyboard-hint){display:none}
   .toy .astra-switch{display:none}
   .toy .astra-shape-bar{top:max(72px,calc(env(safe-area-inset-top) + 62px));left:max(20px,env(safe-area-inset-left));transform:none;flex-direction:column;width:166px;gap:8px}
   .toy .astra-shape-bar>button{width:100%;padding:0 10px;gap:6px}
-  .toy .astra-presets{top:0;left:calc(100% + 12px);transform:none;width:min(300px,calc(100vw - 222px));max-height:calc(100svh - 152px);overflow:auto}
+  .toy .astra-presets{top:0;left:calc(100% + 12px);transform:none;width:min(300px,calc(100vw - 222px));max-height:calc(var(--app-height,100vh) - 152px);overflow:auto}
   .toy .astra-motion-controls{left:max(20px,env(safe-area-inset-left));right:auto;transform:none;bottom:max(10px,calc(env(safe-area-inset-bottom) + 6px));gap:8px}
   .toy .astra-motion-controls button:first-child{margin-right:0}
   .toy .astra-speed{width:166px;left:max(20px,env(safe-area-inset-left));transform:none;bottom:calc(max(10px,calc(env(safe-area-inset-bottom) + 6px)) + 64px);gap:0 10px}
@@ -123,20 +100,72 @@
   .toy .slice-count{right:auto;left:50%;transform:translateX(-50%);top:max(72px,calc(env(safe-area-inset-top) + 62px))}
   .toy .silk-palette,.toy .magnet-polarity{top:max(10px,env(safe-area-inset-top))}
   .toy:has(.silk-palette) .wordmark,.toy:has(.magnet-polarity) .wordmark{font-size:20px;gap:6px}
-  .play-guide{margin:auto;max-height:calc(100svh - 24px);width:min(560px,calc(100% - 40px));padding:20px}
-  .guide-heading{margin-bottom:14px}
-  .guide-heading h2{font-size:22px}
-  .guide-heading>span{display:none}
-  .guide-reset-note{margin:12px 0}
 }
 
 @media(hover:none){
   .toy .collection-trigger:hover,.toy .collection-item:hover{transform:none}
 }
 
-@media(max-height:340px) and (min-width:480px){
+@media(max-height:340px) and (orientation:landscape){
   .toy:has(.astra-shape-bar) .wordmark>span{display:none}
   .toy .astra-shape-bar{flex-direction:row;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 176px)}
   .toy .astra-shape-bar>button{width:auto}
   .toy .astra-presets{top:58px;left:50%;transform:translateX(-50%);width:min(300px,calc(100vw - 40px))}
+}
+
+/* Two card columns stop being useful below this width. The collection becomes
+   a compact, one-handed app list while retaining its own momentum scrolling. */
+@media(max-width:360px){
+  .toy .collection-dialog{padding:16px;border-radius:26px}
+  .toy .collection-heading{gap:10px;margin-bottom:14px}
+  .toy .collection-heading h2{font-size:22px}
+  .toy .collection-intro{font-size:11px;margin-top:4px}
+  .toy .collection-list{grid-template-columns:minmax(0,1fr);gap:8px}
+  .toy .collection-card .collection-item{min-height:82px;flex-direction:row;align-items:center;gap:11px;padding:8px 52px 8px 8px;border-radius:18px}
+  .toy .collection-art{width:84px;height:66px;flex:0 0 84px;border-radius:12px}
+  .toy .collection-item-copy{gap:3px}
+  .toy .collection-item-copy strong{font-size:15px}
+  .toy .collection-card .collection-item-copy>span:last-child{display:-webkit-box;overflow:hidden;font-size:11px;line-height:1.35;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .toy .favorite-toggle{right:4px;bottom:50%;transform:translateY(50%)}
+  .toy .collection-current{display:none}
+  .toy .collection-count{margin-top:12px}
+}
+
+/* Foldables and embedded panes can be narrower than the old 320px floor. */
+@media(max-width:300px){
+  .toy .masthead{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  .toy .wordmark{max-width:100%}
+  .toy .wordmark>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .toy .toy-player[data-toy-id] .interaction-dock{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right))}
+  .toy .control-cluster{gap:8px}
+  .toy .control-pill button:not(.sound-toggle){width:48px;padding:0}
+  .toy .control-pill button:not(.sound-toggle)>span,.toy .collection-trigger>span{display:none}
+  .toy .collection-trigger{width:56px;padding:0}
+  .toy .collection-card .collection-item{min-height:74px}
+  .toy .collection-art{width:72px;height:58px;flex-basis:72px}
+  .toy .collection-card .collection-item-copy>span:last-child{display:none}
+  .toy .astra-shape-bar{width:calc(100% - 16px);max-width:none}
+  .toy .astra-shape-bar>button{min-width:0;padding-inline:10px;gap:6px;overflow:hidden;text-overflow:ellipsis}
+  .toy .astra-shape-choice{flex:1 1 54%}
+  .toy .astra-draw-button{flex:1 1 46%;font-size:0}
+  .toy .astra-draw-button::after{content:'Draw';font-size:13px}
+  .toy .silk-palette button{font-size:0;padding-inline:8px}
+}
+
+/* Very short, narrow landscape panes need two compact control rails so the
+   canvas keeps a usable center instead of stacking every control over it. */
+@media(max-height:450px) and (orientation:landscape) and (max-width:479px){
+  .toy :is(.control-pill button:not(.sound-toggle),.collection-trigger){width:48px;min-width:48px;padding:0}
+  .toy .control-pill button:not(.sound-toggle)>span,.toy .collection-trigger>span{display:none}
+  .toy .control-cluster{gap:8px}
+  .toy .toy-player:is([data-toy-id='astra-swirl'],[data-toy-id='astra-cursor']) .interaction-dock{right:max(20px,env(safe-area-inset-right))}
+  .toy .astra-motion-controls button:first-child{width:48px;min-width:48px;padding:0;font-size:0}
+  .toy .astra-motion-controls button:first-child::before{content:'▷';font-size:17px}
+  .toy .astra-motion-controls button:first-child[aria-pressed=true]::before{content:'Ⅱ'}
+  .toy .astra-shape-bar{width:calc(100% - 176px);max-width:none;min-width:0}
+  .toy .astra-shape-bar>button{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .toy .astra-draw-button{flex-shrink:1;font-size:0}
+  .toy .astra-draw-button::after{content:'Draw';font-size:13px}
+  .toy:has(.astra-shape-bar) .wordmark>span,.toy:has(.silk-palette) .wordmark>span,.toy:has(.magnet-polarity) .wordmark>span,.toy:has(.slice-angle) .wordmark>span{display:none}
+  .toy:has(.play-style) .wordmark{visibility:hidden}
 }

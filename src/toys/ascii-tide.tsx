@@ -5,7 +5,7 @@ function TideIcon() {
 }
 
 export const asciiTide: ToyDefinition = {
-  id: 'ascii-tide', name: 'ASCII Tide',
+  id: 'ascii-tide', preview: '/previews/ascii-tide.webp', name: 'ASCII Tide',
   description: 'Stir a sea of characters. Watch order return.',
   icon: TideIcon,
   theme: { background: '#030d0d', foreground: '#d0f9e9', accent: '#77ebbf', muted: '#91b9ac', surface: '#0b2520', border: '#255245' },

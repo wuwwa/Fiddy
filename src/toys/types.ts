@@ -1,5 +1,10 @@
 import type { ComponentType, ReactNode } from 'react';
 
+export type TransformationState = 'ordinary' | 'waiting' | 'entering' | 'transformed' | 'leaving';
+export interface BonusRoundSnapshot {
+  phase: 'idle' | 'waiting' | 'intro' | 'visiting' | 'farewell' | 'returning';
+}
+
 /** The player does not assume a particular rendering engine or even a canvas. */
 export interface ToyController {
   reset(): void;
@@ -7,6 +12,9 @@ export interface ToyController {
   setSound?(enabled: boolean): void | Promise<void>;
   setPaused?(paused: boolean): void;
   setReducedMotion?(reduced: boolean): void;
+  setTransformation?(enabled: boolean): void;
+  startBonusRound?(): void;
+  finishBonusRound?(): void;
 }
 
 export interface ToyPreferences {
@@ -20,6 +28,8 @@ export interface ToyContext {
   theme: Readonly<ToyTheme>;
   preferences: Readonly<ToyPreferences>;
   onInteractionChange(active: boolean): void;
+  onTransformationChange?(state: TransformationState): void;
+  onBonusRoundChange?(state: BonusRoundSnapshot): void;
   onError(message: string): void;
 }
 
@@ -37,7 +47,13 @@ export interface ToyTheme {
   border: string;
 }
 
+export type ToyMode = 'resting' | 'free';
+export type FreeShape = 'jelly' | 'cushion' | 'loop' | 'star' | 'dumpling';
+
 export interface ToyDefinition {
+  primaryMode?: ToyMode;
+  freePlay?: { copy: ToyDefinition['copy']; load(): Promise<ToyModule> };
+  preview?: string;
   id: string;
   name: string;
   description: string;

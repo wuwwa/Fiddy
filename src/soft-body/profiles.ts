@@ -1,4 +1,7 @@
+import type { FoleyMaterial } from '../audio/foley';
+
 export interface SoftBodyFeel {
+  foam?: { lateralExpansion: number; recoveryTime: number; volumeCompliance: number; maxCompression: number };
   kneading?: { followRate:number; speedLimit:number; workRate:number };
   plasticity?: { dwell:number; yield:number; rate:number; maxOffset:number; maxCompression:number };
   stiffness: number;
@@ -26,7 +29,7 @@ export interface SoftBodyFeel {
   twistReturnDamping: number;
 }
 
-export type SoftToyShape = 'pebble' | 'cushion' | 'loop' | 'star' | 'dumpling' | 'putty' | 'dough';
+export type SoftToyShape = 'pebble' | 'cushion' | 'butter' | 'loop' | 'star' | 'dumpling' | 'putty' | 'dough';
 export type MaterialReaction = { kind:'solid' } | { kind:'pop'; threshold:number; relaxation:number; strainOnset:number };
 
 export interface SoftToyProfile {
@@ -42,7 +45,7 @@ export interface SoftToyProfile {
   };
   rippleStrength: number;
   soundPitch: number;
-  soundTexture?: 'gel'|'putty';
+  soundTexture?: FoleyMaterial;
 }
 
 export const jellyProfile: SoftToyProfile = {
@@ -63,7 +66,7 @@ export const jellyProfile: SoftToyProfile = {
     ior: 1.34, absorption: 0xec3852, absorptionDistance: 2.85,
     clearcoat: 0.06, clearcoatRoughness: 0.1,
   },
-  rippleStrength: 0.5, soundPitch: 1,
+  rippleStrength: 0.5, soundPitch: 1, soundTexture: 'gel',
 };
 
 export const cushionProfile: SoftToyProfile = {
@@ -83,7 +86,30 @@ export const cushionProfile: SoftToyProfile = {
     ior: 1.43, absorption: 0x9b80cc, absorptionDistance: 2,
     clearcoat: 0.28, clearcoatRoughness: 0.25,
   },
-  rippleStrength: 0.12, soundPitch: 0.64,
+  rippleStrength: 0.12, soundPitch: 0.64, soundTexture: 'cloth',
+};
+
+/** Dense slow-rise foam: the press is immediate, recovery takes several seconds. */
+export const butterProfile: SoftToyProfile = {
+  label: 'slow-rise butter stick', shape: 'butter',
+  reaction: { kind: 'solid' },
+  feel: {
+    ...cushionProfile.feel,
+    foam: { lateralExpansion: 0.10, recoveryTime: 1.6, volumeCompliance: 0.0015, maxCompression: 0.72 },
+    stiffness: 5, damping: 26, edgeCompliance: 0.025,
+    dragLimit: 0.7, pressDragLimit: 0.42, pullReleaseTime: 1.4,
+    pressDepth: 0.38, holdDepth: 0.68, creepTime: 0.6,
+    pressSpring: 70, pressDamping: 25,
+    returnSpring: 9, returnDamping: 19,
+    tapKick: 0.08, pokeKick: 0.08, dentDepth: 0.22, holdDentDepth: 0.52,
+    twistSpring: 30, twistDamping: 22, twistReturnSpring: 9, twistReturnDamping: 18,
+  },
+  material: {
+    color: 0xffe8a0, roughness: 0.64, transmission: 0, thickness: 0.9,
+    ior: 1.4, absorption: 0xe6bc64, absorptionDistance: 2,
+    clearcoat: 0.035, clearcoatRoughness: 0.5,
+  },
+  rippleStrength: 0, soundPitch: 0.48, soundTexture: 'foam',
 };
 
 export const loopProfile: SoftToyProfile = {
@@ -103,7 +129,7 @@ export const loopProfile: SoftToyProfile = {
     ior: 1.38, absorption: 0x2caa78, absorptionDistance: 1.2,
     clearcoat: 0.24, clearcoatRoughness: 0.075,
   },
-  rippleStrength: 0.32, soundPitch: 1.2,
+  rippleStrength: 0.32, soundPitch: 1.2, soundTexture: 'rubber',
 };
 
 export const starProfile: SoftToyProfile = {
@@ -123,7 +149,7 @@ export const starProfile: SoftToyProfile = {
     ior: 1.4, absorption: 0xe5a448, absorptionDistance: 1.8,
     clearcoat: 0.18, clearcoatRoughness: 0.19,
   },
-  rippleStrength: 0.18, soundPitch: 0.87,
+  rippleStrength: 0.18, soundPitch: 0.87, soundTexture: 'star',
 };
 
 export const dumplingProfile: SoftToyProfile = {
@@ -143,7 +169,7 @@ export const dumplingProfile: SoftToyProfile = {
     ior: 1.42, absorption: 0xd6ab79, absorptionDistance: 2,
     clearcoat: 0.06, clearcoatRoughness: 0.32,
   },
-  rippleStrength: 0.08, soundPitch: 0.53,
+  rippleStrength: 0.08, soundPitch: 0.53, soundTexture: 'dumpling',
 };
 
 export const puttyProfile: SoftToyProfile = {
@@ -183,5 +209,5 @@ export const doughProfile: SoftToyProfile = {
     ior:1.4, absorption:0xe4e0d5, absorptionDistance:2,
     clearcoat:0, clearcoatRoughness:0.8,
   },
-  rippleStrength:0, soundPitch:0.42, soundTexture:'putty',
+  rippleStrength:0, soundPitch:0.42, soundTexture:'dough',
 };

@@ -19,13 +19,13 @@ const copy: ToyDefinition['copy'] = {
   keyboardHint: <>Arrows to aim <span>·</span> <kbd>Q</kbd> / <kbd>E</kbd> to angle <span>·</span> hold <kbd>space</kbd> to cut</>,
 };
 export const jellySlice: ToyDefinition = {
-  id: 'jelly-slice', name: 'Jelly Slice', icon: SliceIcon,
+  id: 'jelly-slice', preview: '/previews/jelly-slice.webp', name: 'Jelly Slice', icon: SliceIcon,
   description: 'Draw a fine wire through rose gel. A slow pull, a gentle separation, a deep little plop.',
   theme: { background: '#f4e9e5', foreground: '#653a41', accent: '#a75365', muted: '#947778', surface: '#fff9f5', border: '#ddc9c7' },
   copy, load: () => import('../slicing/slab'),
 };
 export const jellyPrism: ToyDefinition = {
-  id: 'jelly-prism', name: 'Jelly Prism', icon: PrismIcon,
+  id: 'jelly-prism', preview: '/previews/jelly-prism.webp', name: 'Jelly Prism', icon: PrismIcon,
   description: 'A fine cutting cord slips through mint gel with soft resistance and a low, rounded plop.',
   theme: { background: '#eaf0e9', foreground: '#315b4e', accent: '#4b8069', muted: '#788c7f', surface: '#f7fbf3', border: '#c6d6c7' },
   copy: { ...copy, loading: 'Setting out the prism' }, load: () => import('../slicing/prism'),

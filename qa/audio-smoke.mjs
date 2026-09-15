@@ -128,7 +128,7 @@ try {
   if(oldContexts.length!==1)throw new Error(`Expected one shared context before switch: ${JSON.stringify([...contexts])}`);
   await click('button[aria-label="Open toy collection"]');await delay(150);
   await click('a[href*="toy=jelly"]');
-  await waitFor(data=>data.state?.shape==='pebble' && data.state?.entrance>=0.95,'Toy switch readiness',25000);
+  await waitFor(data=>data.state?.shape==='jelly' || data.state?.shape==='pebble' && data.state?.entrance>=0.95,'Toy switch readiness',25000);
   await waitFor(()=>oldContexts.every(id=>['closed','destroyed'].includes(contexts.get(id))),'Old audio context must close');
   await record('toy switch closes old context');
   if(errors.length)throw new Error(`Browser errors: ${JSON.stringify(errors)}`);

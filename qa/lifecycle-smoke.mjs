@@ -30,7 +30,7 @@ const evaluate=async expression=>{
 const state=()=>evaluate(`(()=>{
   const rect=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
   const dialog=document.querySelector('dialog'),canvas=document.querySelector('canvas'),list=document.querySelector('.collection-list');
-  return {url:location.href,title:document.title,documentId:window.__qaDocument,toy:document.querySelector('[data-toy-id]')?.dataset.toyId,
+  return {url:location.href,title:document.title,documentId:window.__qaDocument,toy:document.querySelector('[data-toy-id]')?.dataset.toyId,mode:document.querySelector('[data-toy-id]')?.dataset.toyMode,
     ready:!!document.querySelector('.toy-player.is-ready'),width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,
     stage:document.querySelector('.toy')?rect(document.querySelector('.toy')):null,
     masthead:document.querySelector('.masthead')?rect(document.querySelector('.masthead')):null,
@@ -86,7 +86,16 @@ try {
   await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
 
  await viewport(1100,800);await send('Page.navigate',{url:origin+'/?toy=liquid-light&renderer='+(process.argv.includes('--webgl')?'webgl':'webgpu')});await waitFor(s=>s.ready,'ready');
- const select=async toy=>{await click('.collection-trigger');await waitFor(s=>s.dialog.open,'open');await click('.collection-item[href*="toy='+toy+'"]');await waitFor(s=>s.toy===toy&&s.ready&&!s.dialog.open,'ready '+toy);};
+ const select=async requested=>{
+  const toy=requested==='free-jelly'?'jelly':requested;
+  await click('.collection-trigger');await waitFor(s=>s.dialog.open,'open');
+  await click('.collection-item[href*="toy='+toy+'"]');
+  await waitFor(s=>s.toy===toy&&s.ready&&!s.dialog.open,'ready '+toy);
+  if(requested==='free-jelly'||process.argv.includes('--mode=free')&&toy!=='liquid-light'){
+   await click('.mode-switch button:nth-child(2)');
+   await waitFor(s=>s.toy===toy&&s.mode==='free'&&s.ready,'free '+toy);
+  }
+ };
  for(let cycle=0;cycle<12;cycle++){
   for(const toy of [process.argv.find(a=>a.startsWith('--toy='))?.slice(6)??'jelly','liquid-light']){await select(toy);await delay(250);}
   await delay(1200);await send('HeapProfiler.collectGarbage');

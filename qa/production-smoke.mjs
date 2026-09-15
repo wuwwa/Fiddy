@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { checkModes } from './mode-checks.mjs';
+import { checkBonus } from './bonus-checks.mjs';
+import { checkFever } from './fever-checks.mjs';
 
 const baseline=process.argv.includes('--baseline');
 const origin=process.env.QA_ORIGIN ?? 'http://127.0.0.1:4173';
@@ -31,7 +34,7 @@ const state=()=>evaluate(`(()=>{
   const rect=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
   const dialog=document.querySelector('dialog'),canvas=document.querySelector('canvas'),list=document.querySelector('.collection-list');
   return {url:location.href,title:document.title,documentId:window.__qaDocument,toy:document.querySelector('[data-toy-id]')?.dataset.toyId,
-    ready:!!document.querySelector('.toy-player.is-ready'),width:innerWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight,
+    ready:!!document.querySelector('.toy-player.is-ready'),mode:document.querySelector('[data-toy-id]')?.dataset.toyMode,width:innerWidth,height:innerHeight,scrollHeight:document.documentElement?.scrollHeight ?? 0,
     stage:document.querySelector('.toy')?rect(document.querySelector('.toy')):null,
     masthead:document.querySelector('.masthead')?rect(document.querySelector('.masthead')):null,
     dock:document.querySelector('.interaction-dock')?rect(document.querySelector('.interaction-dock')):null,
@@ -92,11 +95,13 @@ try {
   await send('Page.addScriptToEvaluateOnNewDocument',{source:'window.__qaDocument=crypto.randomUUID()'});
   await send('Network.enable');await send('Network.setCacheDisabled',{cacheDisabled:true});
 
+  if(!process.argv.includes('--bonus')) {
   const originHeaders=await fetch(origin+'/');
   assert.match(originHeaders.headers.get('content-security-policy')??'',/frame-ancestors 'none'/);
   assert.equal(originHeaders.headers.get('x-content-type-options'),'nosniff');
   assert.equal(originHeaders.headers.get('x-frame-options'),'DENY');
   record('production headers',Object.fromEntries(originHeaders.headers));
+  }
   await send('Page.addScriptToEvaluateOnNewDocument',{source:"\nwindow.__audit={callbacks:0,durations:[],intervals:[],last:0,contexts:[],devices:[],submits:0,draws:0};\nconst a=window.__audit,raf=requestAnimationFrame.bind(window);\nwindow.requestAnimationFrame=fn=>raf(t=>{const start=performance.now();if(a.last&&t!==a.last)a.intervals.push(t-a.last);a.last=t;a.callbacks++;try{fn(t);}finally{a.durations.push(performance.now()-start);if(a.durations.length>1200)a.durations.shift();if(a.intervals.length>1200)a.intervals.shift();}});\nconst getContext=HTMLCanvasElement.prototype.getContext,seen=new WeakSet();\nHTMLCanvasElement.prototype.getContext=function(...args){const ctx=getContext.apply(this,args);if(ctx&&!seen.has(ctx)){seen.add(ctx);if(args[0]==='webgl2'||args[0]==='webgl'){const item={kind:args[0],ref:new WeakRef(ctx),resources:{}};a.contexts.push(item);for(const method of ['drawArrays','drawElements','drawArraysInstanced','drawElementsInstanced']){const draw=ctx[method].bind(ctx);ctx[method]=(...x)=>{a.draws++;return draw(...x);};}for(const kind of ['Texture','Buffer','Framebuffer','Renderbuffer','Program','Shader','VertexArray']){const create=ctx['create'+kind].bind(ctx),remove=ctx['delete'+kind].bind(ctx);item.resources[kind]=0;ctx['create'+kind]=(...x)=>{const value=create(...x);if(value)item.resources[kind]++;return value;};ctx['delete'+kind]=value=>{if(value)item.resources[kind]--;return remove(value);};}}}return ctx;};\nif(window.GPUAdapter){const requestDevice=GPUAdapter.prototype.requestDevice;GPUAdapter.prototype.requestDevice=async function(...args){const device=await requestDevice.apply(this,args),item={destroyed:false};a.devices.push(item);const destroy=device.destroy.bind(device);device.destroy=()=>{item.destroyed=true;return destroy();};return device;};const submit=GPUQueue.prototype.submit;GPUQueue.prototype.submit=function(...args){a.submits++;return submit.apply(this,args);};}\nwindow.__auditState=()=>({callbacks:a.callbacks,submits:a.submits,draws:a.draws,activeDevices:a.devices.filter(d=>!d.destroyed).length,activeContexts:a.contexts.filter(c=>{const gl=c.ref.deref();return gl&&!gl.isContextLost();}).map(c=>({kind:c.kind,resources:c.resources})),durations:a.durations,intervals:a.intervals});\n"});
   const backend=process.argv.includes('--webgl')?'webgl':'webgpu';
   await viewport(1200,900);
@@ -105,8 +110,23 @@ try {
   await delay(1100);
   const initial=await evaluate('window.__auditState()');
   assert.ok(backend==='webgpu'?initial.activeDevices===1:initial.activeDevices===0&&initial.activeContexts.length===1,'Actual '+backend+' backend');
-  const toyIds=process.argv.includes('--webgl')?['jelly','jelly-slice','astra-cursor']:await evaluate("[...document.querySelectorAll('.collection-item')].map(e=>new URL(e.href).searchParams.get('toy'))");
-  const select=async toy=>{await click('.collection-trigger');await waitFor(s=>s.dialog.open,'Collection open');await click('.collection-item[href*="toy='+toy+'"]');await waitFor(s=>s.toy===toy&&s.ready&&!s.dialog.open,toy+' ready');await delay(150);};
+  const requestedToy=process.argv.find(arg=>arg.startsWith('--toy='))?.slice(6);
+  const toyIds=requestedToy?[requestedToy==='free-jelly'?'jelly':requestedToy]:process.argv.includes('--webgl')?['jelly','jelly-slice','astra-cursor']:await evaluate("[...document.querySelectorAll('.collection-item')].map(e=>new URL(e.href).searchParams.get('toy'))");
+  const select=async requested=>{
+    const toy=requested==='free-jelly'?'jelly':requested,mode=requested==='free-jelly'?'free':'resting';
+    await click('.collection-trigger');await waitFor(s=>s.dialog.open,'Collection open');await click('.collection-item[href*="toy='+toy+'"]');
+    await waitFor(s=>s.toy===toy&&s.ready&&!s.dialog.open,toy+' ready');
+    if((await state()).mode!==mode){await click('.mode-switch button:'+(mode==='free'?'last-of-type':'first-of-type'));await waitFor(s=>s.ready&&s.mode===mode,toy+' '+mode);}
+    await delay(150);
+  };
+  if(process.argv.includes('--fever')){
+    await checkFever({origin,backend,send,evaluate,state,waitFor,click,key,viewport,delay,record,screenshot});
+  } else if(process.argv.includes('--bonus')){
+    await checkBonus({origin,backend,send,evaluate,state,waitFor,click,key,viewport,delay,record,screenshot});
+  } else if(process.argv.includes('--modes')){
+    await checkModes({origin,backend,send,evaluate,state,waitFor,click,key,viewport,delay,record,screenshot});
+  } else {
+  if(requestedToy==='free-jelly')await select(requestedToy);
   const percentile=(values,p)=>{const sorted=values.toSorted((a,b)=>a-b);return +(sorted[Math.floor((sorted.length-1)*p)]??0).toFixed(2);};
   for(const toy of toyIds){
     if((await state()).toy!==toy)await select(toy);
@@ -152,10 +172,47 @@ try {
   await click('button[aria-label^="Reset "]');
   await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   record('mobile cancellation and reduced motion',{screenshot:await screenshot('production-'+backend+'-mobile')});
+  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+  await select('free-jelly'); await delay(1800);
+  record('free jelly phone layout',{screenshot:await screenshot('free-jelly-'+backend+'-portrait')});
+  await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:550,id:1}]});
+  await delay(1000);
+  assert.equal(await evaluate("document.querySelector('canvas').classList.contains('is-grabbing')"),true,'Free Jelly actual skin was not grabbed');
+  record('free jelly front hold',{screenshot:await screenshot('free-jelly-'+backend+'-hold')});
+  for(let i=1;i<=7;i++){
+    await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195,y:550+i*10,id:1}]}); await delay(40);
+  }
+  await delay(1000);
+  record('free jelly downward press',{screenshot:await screenshot('free-jelly-'+backend+'-press')});
+  // A second finger must not replace the first grip or leave it stuck.
+  await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:620,id:1},{x:225,y:530,id:2}]});
+  for(let i=1;i<=14;i++){
+    await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:195+i*3,y:620-i*23,id:1},{x:225,y:530,id:2}]}); await delay(30);
+  }
+  record('free jelly touch lift',{screenshot:await screenshot('free-jelly-'+backend+'-lift')});
+  await send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  assert.equal(await evaluate("document.querySelector('canvas').classList.contains('is-grabbing')"),false,'Free Jelly cancellation stuck');
+  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await viewport(844,390,true); await delay(1200);
+  record('free jelly landscape',{screenshot:await screenshot('free-jelly-'+backend+'-landscape')});
+  await viewport(1100,800); await click('button[aria-label^="Reset "]'); await delay(1200);
+  // Reach the canvas using keyboard navigation from Reset, past the sound control.
+  for(let i=0;i<2;i++){
+    await send('Input.dispatchKeyEvent',{type:'keyDown',code:'Tab',key:'Tab',windowsVirtualKeyCode:9,modifiers:8});
+    await send('Input.dispatchKeyEvent',{type:'keyUp',code:'Tab',key:'Tab',windowsVirtualKeyCode:9,modifiers:8});
+  }
+  assert.equal((await state()).focus.tag,'CANVAS','Free Jelly keyboard focus');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',code:'Space',key:' ',windowsVirtualKeyCode:32}); await delay(150);
+  assert.equal(await evaluate("document.querySelector('canvas').classList.contains('is-grabbing')"),true,'Free Jelly keyboard grip');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',code:'ArrowUp',key:'ArrowUp',windowsVirtualKeyCode:38}); await delay(450);
+  await send('Input.dispatchKeyEvent',{type:'keyUp',code:'ArrowUp',key:'ArrowUp',windowsVirtualKeyCode:38});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',code:'Space',key:' ',windowsVirtualKeyCode:32});
+  assert.equal(await evaluate("document.querySelector('canvas').classList.contains('is-grabbing')"),false,'Free Jelly keyboard release');
+  }
   assert.equal(errors.length,0,JSON.stringify(errors));record('passed',{backend,errors});
 }catch(error){console.error(error);process.exitCode=1;results.push({failure:String(error)});}
 finally{
- await writeFile(join(artifacts,'production-'+(process.argv.includes('--webgl')?'webgl':'webgpu')+'-results.json'),JSON.stringify({results,errors},null,2));
+ await writeFile(join(artifacts,(process.argv.includes('--fever')?'fever-':process.argv.includes('--bonus')?'bonus-':'production-')+(process.argv.includes('--webgl')?'webgl':'webgpu')+'-results.json'),JSON.stringify({results,errors},null,2));
  if(socket?.readyState===WebSocket.OPEN){try{await send('Browser.close',{},null);}catch{}socket.close();}
  await delay(300);if(chrome.exitCode===null)chrome.kill();
 }

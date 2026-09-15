@@ -15,6 +15,7 @@ COPY --from=build /app/build/fly/security-headers.conf /etc/nginx/security-heade
 COPY --from=build /app/dist/index.html /usr/share/nginx/html/index.html
 COPY --from=build /app/dist/favicon.svg /usr/share/nginx/html/favicon.svg
 COPY --from=build /app/dist/assets /usr/share/nginx/html/assets
+COPY --from=build /app/dist/audio /usr/share/nginx/html/audio
 USER nginx
 RUN nginx -t
 EXPOSE 8080

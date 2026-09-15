@@ -5,7 +5,7 @@ function LiquidIcon() {
 }
 
 export const liquidLight: ToyDefinition = {
-  id: 'liquid-light', name: 'Liquid Light',
+  id: 'liquid-light', preview: '/previews/liquid-light.webp', name: 'Liquid Light',
   description: 'Paint luminous ribbons. Let the colors wander.',
   icon: LiquidIcon,
   theme: { background: '#04060f', foreground: '#e5e7ff', accent: '#ada6ff', muted: '#a7aecf', surface: '#171a34', border: '#383b61' },

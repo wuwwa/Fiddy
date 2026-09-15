@@ -1,5 +1,6 @@
 import type { ToyDefinition } from './types';
 import { softBodyControls } from './soft-body-copy';
+import { freePlay } from './free-play';
 
 function StarIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -9,7 +10,8 @@ function StarIcon() {
 }
 
 export const star: ToyDefinition = {
-  id: 'star', name: 'Star',
+  freePlay: freePlay('star'),
+  id: 'star', preview: '/previews/star.webp', name: 'Star',
   description: 'A soft solid with pliable points and a gentle return.',
   icon: StarIcon,
   theme: {

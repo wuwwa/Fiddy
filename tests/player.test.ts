@@ -36,6 +36,22 @@ test('a toy canceled during import is never mounted', async () => {
   assert.equal(mounts, 0); assert.deepEqual(ready, []); assert.deepEqual(errors, []);
 });
 
+test('transformations use the current controller and retired sessions cannot change preview state', async () => {
+  const observed = observe(), changes: string[] = [], requests: boolean[] = [];
+  let context!: ToyContext, resets = 0;
+  const player = new ToySession({ ...jelly, load: async () => ({ mount: async (_host, ctx) => {
+    context = ctx;
+    return { reset() { resets++; }, dispose() {}, setTransformation(enabled) {
+      requests.push(enabled); ctx.onTransformationChange?.(enabled ? 'transformed' : 'ordinary');
+    } };
+  } }) }, host, { ...observed.events, onTransformationChange: state => changes.push(state) }, defaults);
+  await player.start();
+  player.setTransformation(true); player.reset();
+  assert.deepEqual(requests, [true]); assert.deepEqual(changes, ['transformed']); assert.equal(resets, 1);
+  player.dispose(); context.onTransformationChange?.('ordinary'); player.setTransformation(false);
+  assert.deepEqual(changes, ['transformed']); assert.deepEqual(requests, [true]);
+});
+
 test('a late mount is disposed once and cannot replace the new toy', async () => {
   const mounting = deferred<ToyController>();
   let context!: ToyContext, disposals = 0;
@@ -128,7 +144,7 @@ test('failed imports are recoverable through a fresh session', async () => {
 
 test('registry IDs are unique and toy links preserve renderer options', () => {
   assert.equal(new Set(toys.map(toy => toy.id)).size, toys.length);
-  assert.equal(findToy(null).id, 'jelly'); assert.equal(findToy('missing').id, 'jelly');
+  assert.equal(findToy(null).id, 'butter'); assert.equal(findToy('missing').id, 'butter');
   assert.equal(findToy('jelly'), jelly);
   assert.equal(findToy('cushion').id, 'cushion');
   assert.equal(toyHref('cushion', '?renderer=webgl&toy=jelly'), '?renderer=webgl&toy=cushion');

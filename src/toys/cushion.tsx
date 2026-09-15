@@ -1,5 +1,6 @@
 import type { ToyDefinition } from './types';
 import { softBodyControls } from './soft-body-copy';
+import { freePlay } from './free-play';
 
 function CushionIcon() {
   return <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -9,8 +10,9 @@ function CushionIcon() {
 }
 
 export const cushion: ToyDefinition = {
-  id: 'cushion', name: 'Cushion',
-  description: 'A dense, soft cushion. Hold deeper; release for a slow return.',
+  freePlay: freePlay('cushion'),
+  id: 'cushion', preview: '/previews/cushion.webp', name: 'Cushion',
+  description: 'A soft cushion that sinks slowly and gently recovers.',
   icon: CushionIcon,
   theme: {
     background: '#eae5f3', foreground: '#3e3456', accent: '#786098',

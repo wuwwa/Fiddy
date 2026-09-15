@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { normalView, positionViewDirection, uniform } from 'three/tsl';
 import { SoftBodyPhysics, STEP, FLOOR, MAX_CONTACTS, type StrainSample } from './physics';
 import { createSoftGeometry } from './geometry';
+import { addButterLettering } from '../butter/lettering';
 import { createStudioEnvironment, createContactShadow } from './lighting';
 import { SurfaceRipples } from './ripples';
 import { SoftToyActivity } from './activity';
@@ -114,6 +115,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       vertexColors:!!physics.kneading,
     });
     const opticalDepth=uniform(finish.thickness);
+    if(profile.shape==='butter') cleanup.push(addButterLettering(geometry,material));
     if(finish.transmission>0.5) {
       // Approximate the path through a rounded solid after refraction. The old
       // view-normal fade erased absorption at the rim and created a milky halo.
@@ -146,7 +148,7 @@ export async function createSoftToyScene(canvas: HTMLCanvasElement, context: Toy
       jelly.rotation.y=rotation.angle;
       const compression=physics.compressionAmount*(response.bursting?1-recoveryAt(response.age):1);
       opticalDepth.value=finish.thickness/Math.sqrt(1-compression);
-      contact.shadow.scale.setScalar(1/Math.sqrt(1-compression));
+      contact.shadow.scale.setScalar((1-compression)**(-0.5*(profile.feel.foam?.lateralExpansion ?? 1)));
       contact.shadow.material.opacity=entrance.shadow;
       contact.shadow.rotation.set(-Math.PI/2,0,rotation.angle);
       jelly.updateMatrixWorld();
